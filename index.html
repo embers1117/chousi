@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>抽丝 · 长文一键抽成待办</title>
+<meta name="description" content="粘贴一大段文字，自动抽出时间、地点、任务、备注，生成结构化待办。纯前端、离线可用。">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b1c22'/%3E%3Cpath d='M18 20h28M18 32h20M18 44h24' stroke='%23f5c451' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="22" height="22"><path d="M6 9h20M6 16h13M6 23h17" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
+    </span>
+    <span class="brand-text">
+      <strong>抽丝</strong>
+      <em>长文一键抽成待办</em>
+    </span>
+  </div>
+  <div class="top-actions">
+    <button class="btn-ghost" id="btn-theme" title="切换深浅色" aria-label="切换深浅色">◐</button>
+    <button class="btn-ghost" id="btn-ai" title="大模型增强（可选）">AI 设置</button>
+    <a class="btn-ghost" id="lnk-gh" href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ───────────── 左：输入 ───────────── -->
+  <section class="pane pane-in" id="pane-in">
+    <div class="pane-head">
+      <h2>粘贴原文</h2>
+      <span class="meta" id="counter">0 字</span>
+    </div>
+
+    <div class="editor-wrap">
+      <textarea id="input" spellcheck="false"
+        placeholder="把通知、群聊记录、邮件、会议纪要整段粘进来……（也可以直接把 txt / md 文件拖进来）"></textarea>
+      <div class="editor-foot">
+        <span class="hint">Ctrl / ⌘ + Enter 立即抽取</span>
+        <span class="hint" id="engine-hint">规则引擎 · 本地运行</span>
+      </div>
+    </div>
+
+    <div class="input-tools">
+      <button class="btn-ghost" id="btn-sample">载入示例</button>
+      <button class="btn-ghost" id="btn-clear">清空</button>
+      <div class="seg" id="engine-seg" role="group" aria-label="抽取引擎">
+        <button class="seg-item is-on" data-engine="rules">规则</button>
+        <button class="seg-item" data-engine="ai">AI</button>
+      </div>
+      <button class="btn-primary" id="btn-extract">
+        <span class="btn-label">抽&nbsp;取</span>
+        <kbd>↵</kbd>
+      </button>
+    </div>
+
+    <div class="quick-help" id="quick-help">
+      <p><b>抽丝</b> 会把这段话拆成一条条待办，识别 <b>时间 / 地点 / 人物 / 任务 / 备注</b>，
+      并保留原文出处，方便你回去核对。</p>
+      <ul>
+        <li>一句话里有多件事？会自动拆成多条。</li>
+        <li>“本周五前”识别为<b>截止时间</b>，不是开始时间。</li>
+        <li>抽完可逐字改，再一键加入待办。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ───────────── 右：结果 ───────────── -->
+  <section class="pane pane-out">
+    <div class="pane-head pane-head-tabs">
+      <div class="tabs" id="tabs" role="tablist">
+        <button class="tab is-on" data-tab="drafts" role="tab">提取结果 <span class="count" id="count-drafts">0</span></button>
+        <button class="tab" data-tab="todos" role="tab">我的待办 <span class="count" id="count-todos">0</span></button>
+      </div>
+      <div class="pane-head-tools">
+        <button class="btn-ghost" id="btn-export" title="导出">导出</button>
+      </div>
+    </div>
+
+    <!-- 提取结果 -->
+    <div class="view" id="view-drafts">
+      <div class="bulkbar" id="bulkbar" hidden>
+        <label class="chk"><input type="checkbox" id="chk-all"><span class="chk-box"></span>全选</label>
+        <span class="meta" id="bulk-count">已选 0 条</span>
+        <button class="btn-primary btn-sm" id="btn-add-all">全部加入待办</button>
+        <button class="btn-ghost btn-sm" id="btn-copy-json">复制 JSON</button>
+      </div>
+      <div class="list" id="list-drafts"></div>
+      <div class="empty" id="empty-drafts">
+        <div class="empty-art" aria-hidden="true">⇢ ⇢ ⇢</div>
+        <p>左边粘一大段文字，点「抽取」。</p>
+      </div>
+    </div>
+
+    <!-- 待办清单 -->
+    <div class="view" id="view-todos" hidden>
+      <div class="toolbar">
+        <input type="search" id="search" placeholder="搜索待办…" class="search">
+        <div class="chips" id="filter-cats"></div>
+        <button class="btn-ghost btn-sm" id="btn-clear-done">清理已完成</button>
+      </div>
+      <div class="list grouped" id="list-todos"></div>
+      <div class="empty" id="empty-todos">
+        <div class="empty-art" aria-hidden="true">☑</div>
+        <p>还没有待办。抽取结果里点「加入待办」即可。</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ───────────── 卡片模板 ───────────── -->
+<template id="tpl-card">
+  <article class="card" data-mode="draft">
+    <header class="card-top">
+      <label class="chk pick-wrap" title="选中">
+        <input type="checkbox" data-act="pick">
+        <span class="chk-box"></span>
+      </label>
+      <label class="chk done-wrap" title="标记完成">
+        <input type="checkbox" data-act="done">
+        <span class="chk-box"></span>
+      </label>
+      <input class="card-title" data-field="title" placeholder="要做的事…" maxlength="120">
+      <div class="card-actions">
+        <span class="badge badge-conf" data-act="conf" title="抽取置信度">—</span>
+        <button class="icon-btn" data-act="source" title="查看原文出处">◎</button>
+        <button class="icon-btn danger" data-act="del" title="删除">✕</button>
+        <button class="btn-primary btn-sm" data-act="save">加入待办</button>
+      </div>
+    </header>
+
+    <div class="card-body">
+      <div class="row">
+        <span class="row-ico" title="时间">🕒</span>
+        <div class="row-main">
+          <input class="inp" data-field="dueText" placeholder="时间（原文表述）">
+          <input class="inp inp-date" type="datetime-local" data-field="due">
+          <label class="mini-check" title="这是截止时间">
+            <input type="checkbox" data-field="deadline"> 截止
+          </label>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="row-ico" title="地点">📍</span>
+        <div class="row-main">
+          <input class="inp" data-field="place" placeholder="地点">
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="row-ico" title="人物">👤</span>
+        <div class="row-main">
+          <input class="inp" data-field="people" placeholder="相关人（用逗号分隔）">
+        </div>
+      </div>
+
+      <div class="row row-notes">
+        <span class="row-ico" title="备注">✎</span>
+        <div class="row-main">
+          <textarea class="inp inp-notes" data-field="notes" rows="1" placeholder="备注：要带的东西、要求、风险…"></textarea>
+        </div>
+      </div>
+
+      <div class="row row-tail">
+        <span class="row-ico" title="分类">#</span>
+        <div class="row-main row-chips">
+          <select class="inp inp-mini" data-field="category">
+            <option value="work">工作</option>
+            <option value="study">学习</option>
+            <option value="life">生活</option>
+            <option value="health">健康</option>
+            <option value="money">钱款</option>
+            <option value="social">人际</option>
+            <option value="other">其他</option>
+          </select>
+          <select class="inp inp-mini" data-field="priority">
+            <option value="high">重要</option>
+            <option value="normal">普通</option>
+            <option value="low">不急</option>
+          </select>
+          <span class="badge badge-soft" data-act="duelabel">无时间</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-source" hidden></div>
+  </article>
+</template>
+
+<!-- ───────────── AI 设置 ───────────── -->
+<dialog id="dlg-ai" class="dialog">
+  <form method="dialog" class="dialog-inner">
+    <h3>大模型增强（可选）</h3>
+    <p class="dialog-tip">默认的规则引擎完全离线。想要更强的语义理解，可以填入任意 <b>OpenAI 兼容</b> 接口。
+      密钥只存在你本机浏览器 localStorage 里，不会上传到任何第三方服务器（除了你自己填的那个接口）。</p>
+
+    <label class="fld"><span>服务商</span>
+      <select id="ai-provider">
+        <option value="deepseek">DeepSeek</option>
+        <option value="openai">OpenAI</option>
+        <option value="moonshot">Moonshot / Kimi</option>
+        <option value="custom">自定义（OpenAI 兼容）</option>
+      </select>
+    </label>
+
+    <label class="fld"><span>接口地址</span>
+      <input id="ai-base" placeholder="https://api.deepseek.com/v1" autocomplete="off">
+    </label>
+
+    <label class="fld"><span>模型</span>
+      <input id="ai-model" placeholder="deepseek-chat" autocomplete="off">
+    </label>
+
+    <label class="fld"><span>API Key</span>
+      <input id="ai-key" type="password" placeholder="sk-…" autocomplete="off">
+    </label>
+
+    <label class="fld fld-check">
+      <input type="checkbox" id="ai-remember"> <span>记住这台设备上的配置</span>
+    </label>
+
+    <p class="dialog-warn" id="ai-warn" hidden></p>
+
+    <div class="dialog-actions">
+      <button class="btn-ghost" value="cancel">取消</button>
+      <button class="btn-ghost" id="btn-ai-test" value="none">测试连接</button>
+      <button class="btn-primary" id="btn-ai-save" value="save">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ───────────── 导出菜单 ───────────── -->
+<dialog id="dlg-export" class="dialog">
+  <form method="dialog" class="dialog-inner">
+    <h3>导出</h3>
+    <div class="export-grid">
+      <button class="export-item" data-export="md"><b>Markdown</b><span>.md · 贴进笔记 / Notion</span></button>
+      <button class="export-item" data-export="ics"><b>日历</b><span>.ics · 导入手机日历（带时间）</span></button>
+      <button class="export-item" data-export="json"><b>JSON</b><span>.json · 备份 / 再导入</span></button>
+      <button class="export-item" data-export="txt"><b>纯文本</b><span>.txt · 勾选清单</span></button>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn-ghost" value="cancel">关闭</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>

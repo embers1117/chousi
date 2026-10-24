@@ -1,0 +1,4751 @@
+<!doctype html>
+<html lang="zh-CN" data-bundled="1">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>抽丝 · 长文一键抽成待办</title>
+<meta name="description" content="粘贴一大段文字，自动抽出时间、地点、任务、备注，生成结构化待办。纯前端、离线可用。">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b1c22'/%3E%3Cpath d='M18 20h28M18 32h20M18 44h24' stroke='%23f5c451' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   抽丝 · chousi — 唯一样式表
+   纯 CSS：无框架、无外链字体、无图片、无 @import。
+   纸感 + 细线 + 暖金点缀；桌面优先，<=980px 单栏堆叠。
+
+   目录
+     01 设计令牌（浅色 / 深色）
+     02 基础重置
+     03 滚动条与选区
+     04 顶栏
+     05 按钮 / 键帽 / 图标按钮
+     06 分段控件
+     07 布局与面板
+     08 左栏：输入
+     09 右栏：结果外壳（tabs / view / toolbar / bulkbar / chips / empty / 分组）
+     10 待办卡片（含 draft / saved / done / picked / priority）
+     11 卡片内控件（.card-title / .inp / .inp-date / .inp-mini / .inp-notes）
+     12 徽标
+     13 原文出处与荧光笔
+     14 对话框 / 表单 / 导出
+     15 Toast
+     16 焦点可见性
+     17 动效降级
+     18 响应式
+     19 令牌速查（配色只改这里）
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══ 01 · 设计令牌 ════════════════════════════════════════════════════════ */
+/* 默认（无 data-theme 时也有一套完整的浅色值） */
+:root {
+  /* 面 */
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --surface-2: #faf9f6;
+  --surface-3: #f3f0e9;
+  --raise: #ffffff; /* 浮起面：分段控件选中块等 */
+  /* 线 */
+  --line: #e5e1d8;
+  --line-2: #d6d1c4;
+  /* 字 */
+  --text: #1b1c22;
+  --text-2: #57564f;
+  --text-3: #78766e;
+  /* 暖金强调 */
+  --accent: #a9701c;
+  --accent-ink: #7a4c0c; /* 可在浅底上当正文读的金色 */
+  --accent-soft: #f7e7c8;
+  --accent-line: #e3c795;
+  /* 主按钮（浅色下近黑底白字） */
+  --primary: #1b1c22;
+  --primary-text: #ffffff;
+  /* 语义 */
+  --danger: #c0392b;
+  --ok: #2f7d5d;
+  /* 荧光笔 */
+  --mark: rgba(245, 196, 81, 0.45);
+  --mark-ink: #4a3005;
+  /* 焦点环 */
+  --focus: #6b3f00;
+  /* 滚动条 */
+  --scroll-thumb: #dcd6c8;
+  --scroll-thumb-hover: #c6bfae;
+  /* 阴影 */
+  --shadow-1: 0 1px 2px rgba(27, 28, 34, 0.05), 0 1px 1px rgba(27, 28, 34, 0.04);
+  --shadow-2: 0 18px 44px -20px rgba(27, 28, 34, 0.35), 0 4px 12px rgba(27, 28, 34, 0.06);
+  /* 字体 */
+  --sans: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  /* 尺寸 */
+  --topbar-h: 56px;
+  --radius: 14px;
+  --radius-card: 12px;
+
+  color-scheme: light;
+}
+
+/* 深色：1/2 —— 未显式指定 data-theme 时跟随系统 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111216;
+    --surface: #191b21;
+    --surface-2: #1f222a;
+    --surface-3: #242832;
+    --raise: #2b313c;
+    --line: #2a2e38;
+    --line-2: #3a4150;
+    --text: #e9e7e2;
+    --text-2: #a8a6a0;
+    --text-3: #85847e;
+    --accent: #f5c451;
+    --accent-ink: #f7d074;
+    --accent-soft: #3a2f16;
+    --accent-line: #5b4820;
+    --primary: #f5c451;
+    --primary-text: #1b1c22;
+    --danger: #ff6b5e;
+    --ok: #5fbf92;
+    --mark: rgba(245, 196, 81, 0.22);
+    --mark-ink: #ffe6a3;
+    --focus: #f0c04a;
+    --scroll-thumb: #343a46;
+    --scroll-thumb-hover: #48505f;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --shadow-2: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 6px 18px rgba(0, 0, 0, 0.35);
+
+    color-scheme: dark;
+  }
+}
+
+/* 深色：2/2 —— 显式 data-theme="dark"（与上面一段保持完全一致） */
+:root[data-theme="dark"] {
+  --bg: #111216;
+  --surface: #191b21;
+  --surface-2: #1f222a;
+  --surface-3: #242832;
+  --raise: #2b313c;
+  --line: #2a2e38;
+  --line-2: #3a4150;
+  --text: #e9e7e2;
+  --text-2: #a8a6a0;
+  --text-3: #85847e;
+  --accent: #f5c451;
+  --accent-ink: #f7d074;
+  --accent-soft: #3a2f16;
+  --accent-line: #5b4820;
+  --primary: #f5c451;
+  --primary-text: #1b1c22;
+  --danger: #ff6b5e;
+  --ok: #5fbf92;
+  --mark: rgba(245, 196, 81, 0.22);
+  --mark-ink: #ffe6a3;
+  --focus: #f0c04a;
+  --scroll-thumb: #343a46;
+  --scroll-thumb-hover: #48505f;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-2: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 6px 18px rgba(0, 0, 0, 0.35);
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* ═══ 02 · 基础重置 ═══════════════════════════════════════════════════════ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* flex 容器会覆盖 hidden 的 UA 样式，必须强制 */
+[hidden] {
+  display: none !important;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  background-color: var(--bg);
+  background-image: radial-gradient(
+      900px 320px at 12% -90px,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(700px 280px at 88% -70px, color-mix(in srgb, var(--accent) 5%, transparent), transparent 72%);
+  background-repeat: no-repeat;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+svg {
+  display: block;
+}
+
+img {
+  max-width: 100%;
+}
+
+b,
+strong {
+  font-weight: 600;
+}
+
+/* ═══ 03 · 滚动条与选区 ═══════════════════════════════════════════════════ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scroll-thumb);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scroll-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  color: var(--text);
+}
+
+/* ═══ 04 · 顶栏 ══════════════════════════════════════════════════════════ */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: var(--topbar-h);
+  padding: 0 20px;
+  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.6);
+  backdrop-filter: blur(12px) saturate(1.6);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--primary-text);
+  box-shadow: var(--shadow-1);
+}
+
+.brand-mark svg {
+  width: 18px;
+  height: 18px;
+}
+
+.brand-text {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  min-width: 0;
+}
+
+.brand-text strong {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.brand-text em {
+  padding-left: 9px;
+  border-left: 1px solid var(--line-2);
+  color: var(--text-3);
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.top-actions .btn-ghost {
+  height: 32px;
+  padding: 0 11px;
+}
+
+/* 主题切换是个字形按钮（◐），单独给一点字号 */
+#btn-theme {
+  padding: 0 10px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* ═══ 05 · 按钮 / 键帽 / 图标按钮 ═════════════════════════════════════════ */
+.btn-ghost,
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease,
+    box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+.btn-primary {
+  border-color: color-mix(in srgb, var(--primary) 90%, #000);
+  background: var(--primary);
+  color: var(--primary-text);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--primary-text) 16%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.14);
+}
+
+.btn-primary:hover {
+  background: color-mix(in srgb, var(--primary) 92%, var(--accent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--primary-text) 20%, transparent),
+    0 4px 12px -4px color-mix(in srgb, var(--primary) 55%, transparent);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.btn-ghost {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--text-2);
+}
+
+.btn-ghost:hover {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.btn-ghost:active {
+  transform: translateY(1px);
+}
+
+.btn-primary[disabled],
+.btn-ghost[disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.btn-sm {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  gap: 5px;
+}
+
+.btn-primary .btn-label {
+  white-space: nowrap;
+}
+
+.btn-primary kbd {
+  display: inline-block;
+  min-width: 15px;
+  padding: 2px 4px;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  color: inherit;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+
+.icon-btn:hover {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.icon-btn.danger:hover,
+.danger:hover {
+  color: var(--danger);
+}
+
+.icon-btn.danger:hover {
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+/* ═══ 06 · 分段控件 ══════════════════════════════════════════════════════ */
+.seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.seg-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+
+.seg-item:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--raise) 55%, transparent);
+}
+
+.seg-item.is-on {
+  border-color: var(--line-2);
+  background: var(--raise);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-1);
+}
+
+/* ═══ 07 · 布局与面板 ════════════════════════════════════════════════════ */
+.layout {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  gap: 20px;
+  height: calc(100vh - 56px);
+  box-sizing: border-box;
+}
+
+@supports (height: 100dvh) {
+  .layout {
+    height: calc(100dvh - 56px);
+  }
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 8px 12px 8px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pane-head h2 {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ═══ 08 · 左栏：输入 ═══════════════════════════════════════════════════ */
+.editor-wrap {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#input {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 120px;
+  padding: 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.75;
+  resize: none;
+  tab-size: 2;
+  overflow: auto;
+  transition: background-color 0.16s ease;
+}
+
+#input::placeholder {
+  color: var(--text-3);
+  opacity: 1;
+}
+
+#input:focus {
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+}
+
+#input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -4px;
+  border-radius: 10px;
+}
+
+.editor-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+}
+
+.hint {
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.input-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.input-tools > * {
+  white-space: nowrap;
+}
+
+.input-tools #btn-extract {
+  margin-left: auto;
+  min-width: 92px;
+}
+
+.quick-help {
+  flex: 0 0 auto;
+  max-height: min(38vh, 220px);
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.72;
+  overflow: auto;
+}
+
+.quick-help p {
+  margin: 0;
+}
+
+.quick-help ul {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  list-style: disc;
+}
+
+.quick-help li {
+  margin: 3px 0;
+}
+
+.quick-help li::marker {
+  color: var(--accent-line);
+}
+
+.quick-help b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ═══ 09 · 右栏：结果外壳 ═══════════════════════════════════════════════ */
+.pane-head-tabs {
+  align-items: flex-end;
+  padding: 6px 8px 0;
+}
+
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px 9px;
+  border-radius: 8px 8px 0 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.tab:hover {
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  color: var(--text);
+}
+
+.tab.is-on {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tab.is-on::after {
+  content: "";
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.tab .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 17px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.tab.is-on .count {
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.pane-head-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding-bottom: 6px;
+}
+
+.view {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 列表本体：各自独立滚动 */
+.list {
+  --list-pad: 10px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: var(--list-pad);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.list:empty {
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+/* 批量操作条 */
+.bulkbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  margin: 10px 10px 0;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.bulkbar .meta {
+  margin-right: auto;
+}
+
+/* 搜索 + 分类 chips 工具条 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.search {
+  flex: 1 1 150px;
+  min-width: 110px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.search::placeholder {
+  color: var(--text-3);
+  opacity: 1;
+}
+
+.search:hover {
+  border-color: var(--line-2);
+}
+
+.search:focus {
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.search::-webkit-search-cancel-button {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 11.5px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.chip:hover {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.chip.is-on {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+/* 空态 */
+.empty {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+  padding: 24px;
+  color: var(--text-3);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.empty-art {
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  opacity: 0.25;
+  user-select: none;
+}
+
+.empty p {
+  max-width: 32ch;
+  margin: 0;
+  line-height: 1.7;
+}
+
+/* 列表里一旦有内容，就收起兄弟位置上的空态（JS 忘了隐藏也不会两处同时出现） */
+.list:not(:empty) + .empty {
+  display: none;
+}
+
+/* 分组：今天 / 明天 / 本周 / 以后 / 无日期 / 已完成 */
+.grouped {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grouped .group-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin: 0 calc(var(--list-pad) * -1);
+  padding: 6px var(--list-pad);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  backdrop-filter: blur(8px) saturate(1.4);
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.6;
+}
+
+.grouped .group-head::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.75;
+}
+
+/* ═══ 10 · 待办卡片 ═════════════════════════════════════════════════════ */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease,
+    background-color 0.16s ease;
+}
+
+/* 左侧 3px 优先级竖条 */
+.card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.card:hover {
+  border-color: var(--line-2);
+  box-shadow: var(--shadow-1);
+}
+
+.card.priority-high::before {
+  background: var(--danger);
+  opacity: 0.9;
+}
+
+.card.priority-low::before {
+  background: var(--text-3);
+  opacity: 0.45;
+}
+
+.card.is-done {
+  opacity: 0.58;
+}
+
+.card.is-done::before {
+  opacity: 0.3;
+}
+
+/* 选中（批量操作勾选） */
+.card.is-picked,
+.card[data-picked="1"] {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow-1);
+}
+
+.card.is-picked:hover,
+.card[data-picked="1"]:hover {
+  border-color: color-mix(in srgb, var(--accent) 72%, var(--line));
+}
+
+/* 头部 */
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: 2px;
+}
+
+/* 卡片主体 */
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 2px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+}
+
+.row-ico {
+  flex: 0 0 16px;
+  width: 16px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  line-height: 1;
+  text-align: center;
+  opacity: 0.85;
+  filter: saturate(0.25);
+  user-select: none;
+}
+
+.row-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.row-notes {
+  align-items: flex-start;
+}
+
+.row-notes .row-ico {
+  padding-top: 7px;
+}
+
+.row-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* 复选框（模板里的 .chk） */
+.chk {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  color: var(--text-2);
+  font-size: 12.5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.chk input {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.chk-box {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid color-mix(in srgb, var(--text-3) 70%, transparent);
+  border-radius: 5px;
+  background: var(--surface);
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.chk:hover .chk-box {
+  border-color: var(--text-2);
+}
+
+.chk input:checked + .chk-box {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.chk input:checked + .chk-box::after {
+  content: "";
+  position: absolute;
+  left: 4.5px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--surface);
+  border-width: 0 2px 2px 0;
+  transform: rotate(42deg);
+}
+
+.chk input:focus-visible {
+  outline: none;
+}
+
+.chk input:focus-visible + .chk-box {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+/* 卡片里的「选中」复选框：默认淡，hover / 已选时清晰 */
+.pick-wrap {
+  display: inline-flex;
+  opacity: 0.45;
+  transition: opacity 0.14s ease;
+}
+
+.card:hover .pick-wrap,
+.pick-wrap:focus-within,
+.card.is-picked .pick-wrap {
+  opacity: 1;
+}
+
+/* 「截止」小勾，以及可能由脚本插入的「完成」小勾 */
+.mini-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 2px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mini-check input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+}
+
+.mini-check:has(input:checked) {
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.done-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.done-wrap input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* 模式：draft 显示「加入待办」、隐藏完成勾选；saved 反之 */
+.card[data-mode="draft"] .done-wrap {
+  display: none;
+}
+
+.card[data-mode="saved"] [data-act="save"] {
+  display: none;
+}
+
+.card[data-mode="saved"] .pick-wrap {
+  display: none;
+}
+
+/* ═══ 11 · 卡片内控件 ═══════════════════════════════════════════════════ */
+
+/* 标题：其实是个 input，但要看起来像标题 */
+.card-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 -6px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0.005em;
+  box-shadow: inset 0 -1px 0 transparent;
+  transition: background-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.card-title::placeholder {
+  color: var(--text-3);
+  font-weight: 500;
+  opacity: 1;
+}
+
+.card-title:hover {
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+}
+
+.card-title:focus {
+  background: color-mix(in srgb, var(--accent-soft) 52%, transparent);
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+
+.card-title:focus-visible {
+  outline-offset: 1px;
+}
+
+.card.is-done .card-title {
+  color: var(--text-2);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: color-mix(in srgb, var(--text-3) 85%, transparent);
+}
+
+/* 通用静默输入框 */
+.inp {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+  transition: background-color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.inp::placeholder {
+  color: var(--text-3);
+  opacity: 0.85;
+}
+
+.inp:hover {
+  background: var(--surface-2);
+}
+
+.inp:focus {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.inp:focus-visible {
+  outline-offset: 1px;
+}
+
+/* datetime-local */
+.inp-date {
+  flex: 0 0 auto;
+  width: 168px;
+  max-width: 100%;
+  padding: 4px 6px;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] .inp-date {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .inp-date {
+    color-scheme: dark;
+  }
+}
+
+.inp-date::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.inp-date:hover::-webkit-calendar-picker-indicator,
+.inp-date:focus::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
+/* 两个 select：窄、去掉原生箭头，用 CSS 画的细箭 + 淡底 */
+.inp-mini {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 104px;
+  height: 24px;
+  padding: 0 20px 0 8px;
+  border: 1px dashed var(--line-2);
+  border-radius: 6px;
+  background-color: var(--surface-2);
+  background-image: linear-gradient(45deg, var(--text-3) 50%, transparent 50%),
+    linear-gradient(135deg, transparent 50%, var(--text-3) 50%);
+  background-position: calc(100% - 12px) 50%, calc(100% - 8px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  color: var(--text-2);
+  font-size: 11.5px;
+  line-height: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.inp-mini:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line-2));
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+.inp-mini:focus {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background-color: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.inp-mini option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* 备注 textarea：随内容长高 */
+.inp-notes {
+  height: auto;
+  min-height: 28px;
+  max-height: 160px;
+  padding: 5px 7px;
+  font-size: 13px;
+  line-height: 1.65;
+  field-sizing: content;
+  resize: none;
+  overflow: auto;
+}
+
+/* ═══ 12 · 徽标 ═════════════════════════════════════════════════════════ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge-conf {
+  min-width: 40px;
+  padding: 0 5px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.badge-conf.conf-high {
+  border-color: color-mix(in srgb, var(--ok) 38%, transparent);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  color: var(--ok);
+}
+
+.badge-conf.conf-mid {
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-ink);
+}
+
+.badge-conf.conf-low {
+  border-color: color-mix(in srgb, var(--danger) 34%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+
+.badge-soft {
+  border-color: color-mix(in srgb, var(--accent) 26%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+/* ═══ 13 · 原文出处与荧光笔 ═════════════════════════════════════════════ */
+.card-source[hidden] {
+  display: none !important;
+}
+
+.card-source {
+  margin-top: 8px;
+  max-height: 200px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+}
+
+mark {
+  padding: 0 0.12em;
+  border-radius: 2px;
+  background-color: var(--mark);
+  color: var(--mark-ink);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* ═══ 14 · 对话框 / 表单 / 导出 ═════════════════════════════════════════ */
+.dialog {
+  width: calc(100% - 32px);
+  max-width: 520px;
+  max-height: calc(100vh - 40px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+
+.dialog::backdrop {
+  background: rgba(10, 11, 14, 0.52);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.dialog[open] {
+  animation: dialog-in 0.18s ease-out both;
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dialog-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100vh - 42px);
+  margin: 0;
+  padding: 18px 20px 16px;
+  overflow: auto;
+}
+
+.dialog-inner h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.dialog-tip {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.dialog-tip b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.dialog-warn {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--danger) 34%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.dialog-warn[hidden] {
+  display: none !important;
+}
+
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* label 上下结构：小字标签 + 控件 */
+.fld {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fld > span {
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.fld > input,
+.fld > select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.fld > input::placeholder {
+  color: var(--text-3);
+  opacity: 0.9;
+}
+
+.fld > input:hover,
+.fld > select:hover {
+  border-color: var(--line-2);
+}
+
+.fld > input:focus,
+.fld > select:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.fld > select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 26px;
+  background-image: linear-gradient(45deg, var(--text-3) 50%, transparent 50%),
+    linear-gradient(135deg, transparent 50%, var(--text-3) 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 11px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+/* 横排的 label（单个 checkbox） */
+.fld-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fld-check input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.fld-check > span {
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+/* 导出：2x2 卡片式按钮 */
+.export-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.export-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease,
+    transform 0.12s ease;
+}
+
+.export-item b {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.export-item span {
+  color: var(--text-3);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.export-item:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  transform: translateY(-1px);
+}
+
+.export-item:active {
+  transform: translateY(0);
+}
+
+/* ═══ 15 · Toast ════════════════════════════════════════════════════════ */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(92vw, 540px);
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-text);
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, 0);
+}
+
+.toast[hidden] {
+  display: none !important;
+}
+
+.toast:not([hidden]) {
+  animation: toast-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ═══ 16 · 焦点可见性 ═══════════════════════════════════════════════════ */
+/* 键盘焦点一定看得见；鼠标点击不会出现（:focus-visible 语义） */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 这些控件自己已有描边/底纹反馈，焦点环贴边即可 */
+:where(.btn-ghost, .btn-primary, .seg-item, .tab, .chip, .icon-btn, .export-item):focus-visible {
+  outline-offset: 2px;
+}
+
+/* ═══ 17 · 动效降级 ═════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══ 18 · 响应式 ═══════════════════════════════════════════════════════ */
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    height: auto;
+    padding: 14px;
+  }
+
+  .pane-in {
+    min-height: 320px;
+  }
+
+  .pane-out {
+    min-height: 480px;
+  }
+
+  #input {
+    min-height: 200px;
+  }
+
+  .quick-help {
+    max-height: none;
+  }
+
+  .pane-head {
+    padding-left: 12px;
+  }
+}
+
+@media (max-width: 620px) {
+  .topbar {
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  .brand-text em {
+    display: none;
+  }
+
+  .layout {
+    padding: 10px;
+    gap: 12px;
+  }
+
+  .card-top {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .card-actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+
+  .editor-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .input-tools {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .list {
+    --list-pad: 8px;
+  }
+
+  .bulkbar {
+    margin: 8px 8px 0;
+  }
+
+  .dialog-inner {
+    padding: 16px 16px 14px;
+  }
+
+  .empty {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .export-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inp-date {
+    width: 100%;
+  }
+}
+
+/* ═══ 19 · 令牌速查 ═════════════════════════════════════════════════════ */
+/*
+   想改配色 / 字体 / 尺寸，只需要动文件最上面的 01 段：
+   · 浅色 —— `:root { … }`
+   · 深色 —— `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { … } }`
+             和紧跟其后的 `:root[data-theme="dark"] { … }`（两段必须同值，成对修改）
+   · 字体 —— `--sans` / `--mono`
+   · 间距 —— `--topbar-h`（顶栏高度，同时决定 .layout 的 height 计算）
+             `--radius`（面板）/ `--radius-card`（卡片）/ `.list 的 --list-pad`
+   · 强调色三件套 —— `--accent`（线、描边）/ `--accent-ink`（可当正文读的金色）
+                    / `--accent-soft`（淡底）
+   · 主按钮 —— `--primary` + `--primary-text`
+   · 荧光笔 —— `--mark` + `--mark-ink`
+   · 焦点环 —— `--focus`
+   颜色对比：正文 --text 在 --surface 上 ≈ 17:1（浅色）/ 14:1（深色），
+   次级 --text-2 ≈ 7.4:1 / 7.7:1，--text-3 仅用于提示与占位文字。
+*/
+
+/* ═══ 20 · JS 运行时状态（app.js 会动态加的 class） ══════════════════════ */
+
+/* 报错提示的 Toast（toast() 带 kind='error' 时） */
+.toast.toast-error {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+}
+[data-theme="dark"] .toast.toast-error { color: #1b1c22; }
+
+/* 时间胶囊：已过期变红 */
+.badge.badge-warn {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+}
+@supports not (color: color-mix(in srgb, red 10%, blue)) {
+  .badge.badge-warn { background: var(--accent-soft); }
+}
+
+/* AI 设置的「测试成功」态 */
+.dialog-warn.is-ok {
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+  color: var(--ok);
+}
+
+/* 手动添加的待办没有原文 */
+.src-empty {
+  color: var(--text-3);
+  font-style: normal;
+}
+
+/* 原文出处的段落节奏 */
+.card-source {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.85;
+}
+
+/* 载入中：抽取按钮禁用态 */
+.btn-primary:disabled {
+  cursor: progress;
+  opacity: 0.7;
+  filter: saturate(0.8);
+}
+
+/* 卡片标题聚焦时给出明确落点 */
+.card-title:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="22" height="22"><path d="M6 9h20M6 16h13M6 23h17" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
+    </span>
+    <span class="brand-text">
+      <strong>抽丝</strong>
+      <em>长文一键抽成待办</em>
+    </span>
+  </div>
+  <div class="top-actions">
+    <button class="btn-ghost" id="btn-theme" title="切换深浅色" aria-label="切换深浅色">◐</button>
+    <button class="btn-ghost" id="btn-ai" title="大模型增强（可选）">AI 设置</button>
+    <a class="btn-ghost" id="lnk-gh" href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ───────────── 左：输入 ───────────── -->
+  <section class="pane pane-in" id="pane-in">
+    <div class="pane-head">
+      <h2>粘贴原文</h2>
+      <span class="meta" id="counter">0 字</span>
+    </div>
+
+    <div class="editor-wrap">
+      <textarea id="input" spellcheck="false"
+        placeholder="把通知、群聊记录、邮件、会议纪要整段粘进来……（也可以直接把 txt / md 文件拖进来）"></textarea>
+      <div class="editor-foot">
+        <span class="hint">Ctrl / ⌘ + Enter 立即抽取</span>
+        <span class="hint" id="engine-hint">规则引擎 · 本地运行</span>
+      </div>
+    </div>
+
+    <div class="input-tools">
+      <button class="btn-ghost" id="btn-sample">载入示例</button>
+      <button class="btn-ghost" id="btn-clear">清空</button>
+      <div class="seg" id="engine-seg" role="group" aria-label="抽取引擎">
+        <button class="seg-item is-on" data-engine="rules">规则</button>
+        <button class="seg-item" data-engine="ai">AI</button>
+      </div>
+      <button class="btn-primary" id="btn-extract">
+        <span class="btn-label">抽&nbsp;取</span>
+        <kbd>↵</kbd>
+      </button>
+    </div>
+
+    <div class="quick-help" id="quick-help">
+      <p><b>抽丝</b> 会把这段话拆成一条条待办，识别 <b>时间 / 地点 / 人物 / 任务 / 备注</b>，
+      并保留原文出处，方便你回去核对。</p>
+      <ul>
+        <li>一句话里有多件事？会自动拆成多条。</li>
+        <li>“本周五前”识别为<b>截止时间</b>，不是开始时间。</li>
+        <li>抽完可逐字改，再一键加入待办。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ───────────── 右：结果 ───────────── -->
+  <section class="pane pane-out">
+    <div class="pane-head pane-head-tabs">
+      <div class="tabs" id="tabs" role="tablist">
+        <button class="tab is-on" data-tab="drafts" role="tab">提取结果 <span class="count" id="count-drafts">0</span></button>
+        <button class="tab" data-tab="todos" role="tab">我的待办 <span class="count" id="count-todos">0</span></button>
+      </div>
+      <div class="pane-head-tools">
+        <button class="btn-ghost" id="btn-export" title="导出">导出</button>
+      </div>
+    </div>
+
+    <!-- 提取结果 -->
+    <div class="view" id="view-drafts">
+      <div class="bulkbar" id="bulkbar" hidden>
+        <label class="chk"><input type="checkbox" id="chk-all"><span class="chk-box"></span>全选</label>
+        <span class="meta" id="bulk-count">已选 0 条</span>
+        <button class="btn-primary btn-sm" id="btn-add-all">全部加入待办</button>
+        <button class="btn-ghost btn-sm" id="btn-copy-json">复制 JSON</button>
+      </div>
+      <div class="list" id="list-drafts"></div>
+      <div class="empty" id="empty-drafts">
+        <div class="empty-art" aria-hidden="true">⇢ ⇢ ⇢</div>
+        <p>左边粘一大段文字，点「抽取」。</p>
+      </div>
+    </div>
+
+    <!-- 待办清单 -->
+    <div class="view" id="view-todos" hidden>
+      <div class="toolbar">
+        <input type="search" id="search" placeholder="搜索待办…" class="search">
+        <div class="chips" id="filter-cats"></div>
+        <button class="btn-ghost btn-sm" id="btn-clear-done">清理已完成</button>
+      </div>
+      <div class="list grouped" id="list-todos"></div>
+      <div class="empty" id="empty-todos">
+        <div class="empty-art" aria-hidden="true">☑</div>
+        <p>还没有待办。抽取结果里点「加入待办」即可。</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ───────────── 卡片模板 ───────────── -->
+<template id="tpl-card">
+  <article class="card" data-mode="draft">
+    <header class="card-top">
+      <label class="chk pick-wrap" title="选中">
+        <input type="checkbox" data-act="pick">
+        <span class="chk-box"></span>
+      </label>
+      <label class="chk done-wrap" title="标记完成">
+        <input type="checkbox" data-act="done">
+        <span class="chk-box"></span>
+      </label>
+      <input class="card-title" data-field="title" placeholder="要做的事…" maxlength="120">
+      <div class="card-actions">
+        <span class="badge badge-conf" data-act="conf" title="抽取置信度">—</span>
+        <button class="icon-btn" data-act="source" title="查看原文出处">◎</button>
+        <button class="icon-btn danger" data-act="del" title="删除">✕</button>
+        <button class="btn-primary btn-sm" data-act="save">加入待办</button>
+      </div>
+    </header>
+
+    <div class="card-body">
+      <div class="row">
+        <span class="row-ico" title="时间">🕒</span>
+        <div class="row-main">
+          <input class="inp" data-field="dueText" placeholder="时间（原文表述）">
+          <input class="inp inp-date" type="datetime-local" data-field="due">
+          <label class="mini-check" title="这是截止时间">
+            <input type="checkbox" data-field="deadline"> 截止
+          </label>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="row-ico" title="地点">📍</span>
+        <div class="row-main">
+          <input class="inp" data-field="place" placeholder="地点">
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="row-ico" title="人物">👤</span>
+        <div class="row-main">
+          <input class="inp" data-field="people" placeholder="相关人（用逗号分隔）">
+        </div>
+      </div>
+
+      <div class="row row-notes">
+        <span class="row-ico" title="备注">✎</span>
+        <div class="row-main">
+          <textarea class="inp inp-notes" data-field="notes" rows="1" placeholder="备注：要带的东西、要求、风险…"></textarea>
+        </div>
+      </div>
+
+      <div class="row row-tail">
+        <span class="row-ico" title="分类">#</span>
+        <div class="row-main row-chips">
+          <select class="inp inp-mini" data-field="category">
+            <option value="work">工作</option>
+            <option value="study">学习</option>
+            <option value="life">生活</option>
+            <option value="health">健康</option>
+            <option value="money">钱款</option>
+            <option value="social">人际</option>
+            <option value="other">其他</option>
+          </select>
+          <select class="inp inp-mini" data-field="priority">
+            <option value="high">重要</option>
+            <option value="normal">普通</option>
+            <option value="low">不急</option>
+          </select>
+          <span class="badge badge-soft" data-act="duelabel">无时间</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-source" hidden></div>
+  </article>
+</template>
+
+<!-- ───────────── AI 设置 ───────────── -->
+<dialog id="dlg-ai" class="dialog">
+  <form method="dialog" class="dialog-inner">
+    <h3>大模型增强（可选）</h3>
+    <p class="dialog-tip">默认的规则引擎完全离线。想要更强的语义理解，可以填入任意 <b>OpenAI 兼容</b> 接口。
+      密钥只存在你本机浏览器 localStorage 里，不会上传到任何第三方服务器（除了你自己填的那个接口）。</p>
+
+    <label class="fld"><span>服务商</span>
+      <select id="ai-provider">
+        <option value="deepseek">DeepSeek</option>
+        <option value="openai">OpenAI</option>
+        <option value="moonshot">Moonshot / Kimi</option>
+        <option value="custom">自定义（OpenAI 兼容）</option>
+      </select>
+    </label>
+
+    <label class="fld"><span>接口地址</span>
+      <input id="ai-base" placeholder="https://api.deepseek.com/v1" autocomplete="off">
+    </label>
+
+    <label class="fld"><span>模型</span>
+      <input id="ai-model" placeholder="deepseek-chat" autocomplete="off">
+    </label>
+
+    <label class="fld"><span>API Key</span>
+      <input id="ai-key" type="password" placeholder="sk-…" autocomplete="off">
+    </label>
+
+    <label class="fld fld-check">
+      <input type="checkbox" id="ai-remember"> <span>记住这台设备上的配置</span>
+    </label>
+
+    <p class="dialog-warn" id="ai-warn" hidden></p>
+
+    <div class="dialog-actions">
+      <button class="btn-ghost" value="cancel">取消</button>
+      <button class="btn-ghost" id="btn-ai-test" value="none">测试连接</button>
+      <button class="btn-primary" id="btn-ai-save" value="save">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ───────────── 导出菜单 ───────────── -->
+<dialog id="dlg-export" class="dialog">
+  <form method="dialog" class="dialog-inner">
+    <h3>导出</h3>
+    <div class="export-grid">
+      <button class="export-item" data-export="md"><b>Markdown</b><span>.md · 贴进笔记 / Notion</span></button>
+      <button class="export-item" data-export="ics"><b>日历</b><span>.ics · 导入手机日历（带时间）</span></button>
+      <button class="export-item" data-export="json"><b>JSON</b><span>.json · 备份 / 再导入</span></button>
+      <button class="export-item" data-export="txt"><b>纯文本</b><span>.txt · 勾选清单</span></button>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn-ghost" value="cancel">关闭</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+  const __defs = {};
+  const __cache = {};
+  function __req(id) {
+    id = String(id).replace(/^\.\//, '');
+    if (__cache[id]) return __cache[id].exports;
+    const def = __defs[id];
+    if (!def) throw new Error('模块不存在：' + id);
+    const mod = { exports: {} };
+    __cache[id] = mod;
+    def(mod, mod.exports, __req);
+    return mod.exports;
+  }
+__defs["util.js"] = function (module, exports, __req) {
+// src/util.js —— 无依赖小工具
+// 注意：本文件里的 normalize 必须「逐字符 1:1 替换」，绝不增删字符，
+// 这样抽取结果里的偏移量才能直接对应到用户原文，用于高亮回证。
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** Date -> 'YYYY-MM-DDTHH:mm'（本地时间，喂给 <input type="datetime-local">） */
+function toLocalInput(d) {
+  if (!d) return '';
+  const x = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(x.getTime())) return '';
+  return `${x.getFullYear()}-${pad2(x.getMonth() + 1)}-${pad2(x.getDate())}T${pad2(x.getHours())}:${pad2(x.getMinutes())}`;
+}
+
+/** 'YYYY-MM-DDTHH:mm' -> Date（按本地时区解释，不用 Date 的 UTC 陷阱） */
+function fromLocalInput(s) {
+  if (!s) return null;
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, 0, 0);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function addDays(d, n) {
+  const x = new Date(d.getTime());
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function addMonths(d, n) {
+  const x = new Date(d.getTime());
+  const day = x.getDate();
+  x.setDate(1);
+  x.setMonth(x.getMonth() + n);
+  const dim = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate();
+  x.setDate(Math.min(day, dim));
+  return x;
+}
+
+function startOfDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+function sameDay(a, b) {
+  if (!a || !b) return false;
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function daysBetween(a, b) {
+  return Math.round((startOfDay(b) - startOfDay(a)) / 86400000);
+}
+
+/** 中文数字 -> 整数。支持 十/十一/二十/二十三/两/一九九八（年份按逐位拼） */
+function cnToInt(s) {
+  if (s == null) return null;
+  s = String(s).trim();
+  if (!s) return null;
+  if (/^\d+$/.test(s)) return parseInt(s, 10);
+  const map = { 零: 0, 〇: 0, 一: 1, 壹: 1, 二: 2, 两: 2, 贰: 2, 三: 3, 叁: 3, 四: 4, 肆: 4, 五: 5, 伍: 5, 六: 6, 陆: 6, 七: 7, 柒: 7, 八: 8, 捌: 8, 九: 9, 玖: 9 };
+  if (s === '十') return 10;
+  const tens = s.match(/^([一二两三四五六七八九])?十([一二三四五六七八九])?$/);
+  if (tens) return (tens[1] ? map[tens[1]] : 1) * 10 + (tens[2] ? map[tens[2]] : 0);
+  if (/^[零〇一二两三四五六七八九壹贰叁肆伍陆柒捌玖]+$/.test(s)) {
+    // 一九九八 / 二〇二五 这类按位读的年份
+    if (s.length >= 3) return parseInt([...s].map((c) => map[c]).join(''), 10);
+    return map[s];
+  }
+  return null;
+}
+
+/**
+ * 归一化：只做 1:1 长度的字符替换，保证下标与原文一致。
+ * 全角数字/字母/冒号/空格统一，去除零宽字符（替换成空格而不是删除）。
+ */
+function normalize(text) {
+  const out = new Array(text.length);
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const code = c.charCodeAt(0);
+    let r = c;
+    if (code === 0x3000) r = ' ';                       // 全角空格
+    else if (code >= 0xff10 && code <= 0xff19) r = String.fromCharCode(code - 0xfee0); // ０-９
+    else if (code >= 0xff21 && code <= 0xff3a) r = String.fromCharCode(code - 0xfee0); // Ａ-Ｚ
+    else if (code >= 0xff41 && code <= 0xff5a) r = String.fromCharCode(code - 0xfee0); // ａ-ｚ
+    else if (code === 0xff1a) r = '：';
+    else if (code === 0x200b || code === 0xfeff || code === 0x200c) r = ' ';
+    out[i] = r;
+  }
+  return out.join('');
+}
+
+/** 文本相似度（字符二元组 Jaccard），用于判断两条待办是不是同一件事 */
+function similarity(a, b) {
+  const grams = (s) => {
+    const t = String(s || '').replace(/[\s，。、；：,.;:!?！？"'“”‘’()（）【】\[\]]/g, '');
+    const set = new Set();
+    for (let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2));
+    if (!set.size && t) set.add(t);
+    return set;
+  };
+  const A = grams(a), B = grams(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  for (const g of A) if (B.has(g)) inter++;
+  return inter / (A.size + B.size - inter);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
+
+let seq = 0;
+function uid(prefix = 'td') {
+  seq = (seq + 1) % 10000;
+  return `${prefix}_${Date.now().toString(36)}${seq.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/** 收起多余空白，去掉首尾标点 */
+function tidy(s) {
+  return String(s || '')
+    .replace(/[ \t\u00a0]+/g, ' ')
+    .replace(/\s*\n+\s*/g, ' ')
+    .replace(/^[\s,，。、;；:：\-–—·、]+/, '')
+    .replace(/[\s,，、;；:：\-–—·]+$/, '')
+    .trim();
+}
+
+function truncate(s, n) {
+  s = String(s || '');
+  return s.length <= n ? s : s.slice(0, n - 1) + '…';
+}
+
+  exports.toLocalInput = toLocalInput;
+  exports.fromLocalInput = fromLocalInput;
+  exports.addDays = addDays;
+  exports.addMonths = addMonths;
+  exports.startOfDay = startOfDay;
+  exports.sameDay = sameDay;
+  exports.daysBetween = daysBetween;
+  exports.cnToInt = cnToInt;
+  exports.normalize = normalize;
+  exports.similarity = similarity;
+  exports.escapeHtml = escapeHtml;
+  exports.uid = uid;
+  exports.tidy = tidy;
+  exports.truncate = truncate;
+  exports.pad2 = pad2;
+  exports.clamp = clamp;
+};
+__defs["time.js"] = function (module, exports, __req) {
+// src/time.js —— 中文时间表达式解析（本项目的心脏）
+//
+// 两阶段：
+//   1) 词法：从文本里扫出所有「日期 / 时段 / 时刻 / 区间 / 相对时长 / 模糊词」token
+//   2) 语法：把相邻的 日期 + 时段 + 时刻 合成一个完整时间点，并识别「前 / 之前 / 截止」为截止语义
+//
+// 对外 API：
+//   findTimes(text, {now}) -> ResolvedSpan[]  (按出现顺序，带 index/end 用于原文高亮)
+//   parseWhen(text, {now}) -> ResolvedSpan | null
+//   describeWhen(due, {now, precision, isDeadline}) -> 人话标签
+const { cnToInt, addDays, addMonths, startOfDay, daysBetween, pad2 } = __req('util.js');
+
+const WEEKDAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
+
+const WEEKDAY_CN = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 日: 7, 天: 7, 末: 6, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7 };
+
+/** 时段词 -> 该时段的代表时刻（没写具体几点时用） */
+const DAYPART_TIME = {
+  凌晨: [1, 0], 清晨: [6, 0], 早晨: [7, 30], 早上: [8, 0], 上午: [9, 0],
+  中午: [12, 0], 午后: [14, 0], 下午: [15, 0], 傍晚: [18, 0], 晚上: [19, 0],
+  夜里: [21, 0], 夜间: [21, 0], 半夜: [23, 0],
+};
+const EVENING = new Set(['午后', '下午', '傍晚', '晚上', '夜里', '夜间', '半夜']);
+const MORNING = new Set(['凌晨', '清晨', '早晨', '早上', '上午']);
+
+/** 相对日 */
+const REL_DAY = {
+  今天: 0, 今日: 0, 今儿: 0, 当天: 0, 本日: 0,
+  明天: 1, 明日: 1, 明儿: 1, 次日: 1, 翌日: 1, 第二天: 1,
+  后天: 2, 大后天: 3,
+  昨天: -1, 昨日: -1, 前天: -2, 大前天: -3,
+  今早: 0, 今晚: 0, 明早: 1, 明晚: 1,
+};
+const REL_DAY_DP = { 今早: '早上', 今晚: '晚上', 明早: '早上', 明晚: '晚上' };
+
+const PERIOD = {
+  本月: 'monthStart', 这个月: 'monthStart', 这月: 'monthStart', 当月: 'monthStart',
+  下个月: 'nextMonthStart', 下月: 'nextMonthStart', 下月月初: 'nextMonthStart',
+  上个月: 'prevMonthStart', 上月: 'prevMonthStart',
+  月底: 'monthEnd', 月末: 'monthEnd', 本月末: 'monthEnd', 这个月底: 'monthEnd',
+  下月底: 'nextMonthEnd', 下个月底: 'nextMonthEnd',
+  月初: 'monthStart', 本月初: 'monthStart',
+  今年: 'yearStart', 本年: 'yearStart', 明年: 'nextYearStart', 去年: 'prevYearStart',
+  年底: 'yearEnd', 年末: 'yearEnd', 明年年底: 'nextYearEnd',
+  今年年底: 'yearEnd', 今年底: 'yearEnd', 今年年末: 'yearEnd', 明年底: 'nextYearEnd',
+  年初: 'yearStart', 本年初: 'yearStart',
+  本周: 'weekStart', 这周: 'weekStart', 这个星期: 'weekStart', 这星期: 'weekStart',
+  下周: 'nextWeekStart', 下个星期: 'nextWeekStart', 下星期: 'nextWeekStart',
+  上周: 'prevWeekStart', 上个星期: 'prevWeekStart',
+  上旬: 'monthEarly', 中旬: 'monthMid', 下旬: 'monthLate',
+  上半年: 'h1', 下半年: 'h2',
+  本季度: 'quarterStart', 这个季度: 'quarterStart', 下季度: 'nextQuarterStart', 下个季度: 'nextQuarterStart',
+};
+
+/* ────────────────────────────── 词法 ────────────────────────────── */
+
+const NUM = '(?:\\d{1,2}|[一二两三四五六七八九十]{1,3})';
+
+const PATTERNS = [
+  // 2025年5月3日 / 2025-05-03 / 2025.5.3 / 二〇二五年五月三日
+  {
+    re: /(\d{4}|[一二三四五六七八九〇零]{4})\s*[年\-\/.]\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*[月\-\/.]\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*[日号]?/g,
+    build: (m) => makeAbs(null, m[1], m[2], m[3]),
+  },
+  // 5月3日 / 5月3号
+  {
+    re: /(\d{1,2}|[一二三四五六七八九十]{1,3})\s*月\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*[日号]/g,
+    build: (m) => makeAbs(null, null, m[1], m[2]),
+  },
+  // 5月 / 5月底 / 5月中旬
+  {
+    re: /(\d{1,2}|[一二三四五六七八九十]{1,3})\s*月(份|底|末|初|中旬|上旬|下旬|中)?/g,
+    build: (m) => {
+      const mo = cnToInt(m[1]);
+      if (mo == null || mo < 1 || mo > 12) return null;
+      const sub = m[2] || '';
+      if (sub === '底' || sub === '末') return makeAbs(null, null, m[1], null, { monthEnd: true });
+      if (sub === '初') return makeAbs(null, null, m[1], 1);
+      if (sub === '上旬') return makeAbs(null, null, m[1], 5);
+      if (sub === '中旬') return makeAbs(null, null, m[1], 15);
+      if (sub === '下旬') return makeAbs(null, null, m[1], 25);
+      return makeAbs(null, null, m[1], null);
+    },
+  },
+  // 下个月15号 / 本月20日
+  {
+    re: /(下个?月|这个?月|本月)\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*[号日]/g,
+    build: (m) => {
+      const off = /^下/.test(m[1]) ? 1 : 0;
+      const d = cnToInt(m[2]);
+      if (d == null || d < 1 || d > 31) return null;
+      return { type: 'absdate', y: null, m: null, d, monthOffset: off };
+    },
+  },
+  // 5/3、5-3（排除 9:30、3-5人、2025-05）
+  {
+    re: /(\d{1,2})\s*[\/\-]\s*(\d{1,2})(?![\d:：])/g,
+    build: (m, text) => {
+      const idx = m.index;
+      const prev = idx > 0 ? text[idx - 1] : '';
+      const after = text.slice(idx + m[0].length).replace(/^\s+/, '');
+      const next = after[0] || '';
+      if (/[\d:：\u4e00-\u9fa5]/.test(prev)) return null;   // 前面是数字/汉字（如 2025-05 / 周5-3）
+      if (/[个元块%％点时分秒岁人位次条项天周月年张份件斤克米折成倍页]/.test(next)) return null; // 3-5 人 / 1-2 天
+      const mo = +m[1], da = +m[2];
+      if (mo < 1 || mo > 12 || da < 1 || da > 31) return null;
+      return makeAbs(null, null, mo, da);
+    },
+  },
+  // 3日 / 15号（不带月份，当前月或下个月）
+  {
+    re: /(\d{1,2})\s*([号日])(?![\d期])/g,
+    build: (m, text) => {
+      const idx = m.index;
+      const prev = idx > 0 ? text[idx - 1] : '';
+      if (/[\d年]/.test(prev)) return null;
+      const d = +m[1];
+      if (d < 1 || d > 31) return null;
+      return { type: 'dayonly', d };
+    },
+  },
+  // 周 / 星期 / 礼拜 + 一二三四五六日末
+  {
+    re: /(本|这|这个|当|下|下个|下下|上|上个|每)?\s*(周|星期|礼拜)\s*([一二三四五六日天末]|[1-7])/g,
+    build: (m) => {
+      const wd = WEEKDAY_CN[m[3]];
+      if (!wd) return null;
+      const p = m[1] || '';
+      let weekOffset = 0;
+      if (p === '下' || p === '下个') weekOffset = 1;
+      else if (p === '下下') weekOffset = 2;
+      else if (p === '上' || p === '上个') weekOffset = -1;
+      const explicit = /^(本|这|这个|当)$/.test(p);
+      return { type: 'weekday', weekOffset, wd, explicit, anyway: p === '每' };
+    },
+  },
+  // 相对日
+  {
+    re: /(大后天|大前天|后天|前天|明天|明日|明早|明晚|明儿|今天|今日|今早|今晚|今儿|当天|本日|次日|翌日|第二天|昨天|昨日)/g,
+    build: (m) => ({ type: 'relday', rel: REL_DAY[m[1]], dp: REL_DAY_DP[m[1]] || null }),
+  },
+  // 周期词
+  {
+    re: /(下个月底|下月月初|这个月底|这个月末|本月末|下个月|上个月|本季度|下个季度|这个季度|下个星期|上个星期|这个星期|今年年底|今年底|明年底|今年年末|本月|这个月|这月|当月|下月|上月|月底|月末|月初|本月初|这星期|下星期|下周|本周|这周|上周|明年年底|今年|本年|明年|去年|年底|年末|年初|本年初|上旬|中旬|下旬|上半年|下半年|下季度)/g,
+    build: (m) => {
+      const key = PERIOD[m[1]];
+      if (!key) return null;
+      return { type: 'period', key, raw: m[1] };
+    },
+  },
+  // 4位年份
+  {
+    re: /(\d{4})\s*年(度|底|末|初)?/g,
+    build: (m) => ({ type: 'year', y: +m[1], sub: m[2] || '' }),
+  },
+  // 区间：9:00-11:00
+  {
+    re: /(\d{1,2})\s*[:：]\s*(\d{2})\s*[-–—~～至到]\s*(\d{1,2})\s*[:：]\s*(\d{2})/g,
+    build: (m) => ({ type: 'range', a: { h: +m[1], mi: +m[2] }, b: { h: +m[3], mi: +m[4] } }),
+  },
+  // 区间：9点到11点 / 9-11点
+  {
+    re: /(\d{1,2}|[一二三四五六七八九十]{1,3})\s*点(?:半)?\s*[-–—~～至到]\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*点/g,
+    build: (m) => ({ type: 'range', a: { h: cnToInt(m[1]), mi: 0 }, b: { h: cnToInt(m[2]), mi: 0 } }),
+  },
+  // 时刻：9:30
+  {
+    re: /(\d{1,2})\s*[:：]\s*(\d{2})(?![\d])/g,
+    build: (m, text) => {
+      const idx = m.index;
+      const prev = idx > 0 ? text[idx - 1] : '';
+      if (/[a-zA-Z\/]/.test(prev)) return null; // http:// 、12/3 之类
+      const h = +m[1], mi = +m[2];
+      if (h > 24 || mi > 59) return null;
+      return { type: 'clock', h: h === 24 ? 0 : h, mi };
+    },
+  },
+  // 时刻：3点 / 3点半 / 3点15分 / 三点一刻
+  {
+    re: new RegExp(`(${NUM})\\s*点\\s*(半|一刻|三刻|整|(\\d{1,2})\\s*分?)?`, 'g'),
+    build: (m) => {
+      const h = cnToInt(m[1]);
+      if (h == null || h > 24) return null;
+      let mi = 0;
+      if (m[2] === '半') mi = 30;
+      else if (m[2] === '一刻') mi = 15;
+      else if (m[2] === '三刻') mi = 45;
+      else if (m[3]) mi = cnToInt(m[3]) || 0;
+      if (mi > 59) return null;
+      return { type: 'clock', h: h === 24 ? 0 : h, mi };
+    },
+  },
+  // 相对时长：三天内 / 一周后 / 半小时后
+  {
+    re: /(\d+|[一二两三四五六七八九十]+|半)\s*(个?)(天|日|周|个?星期|个?月|小时|钟头|分钟)\s*(内|以内|之内|后|之后|以前|之前)/g,
+    build: (m) => {
+      const n = m[1] === '半' ? 0.5 : cnToInt(m[1]);
+      if (n == null || n === 0) return null;
+      const unit = m[3];
+      const mode = /内/.test(m[4]) ? 'within' : (/前/.test(m[4]) ? 'before' : 'after');
+      return { type: 'durrel', n, unit, mode };
+    },
+  },
+  // 时段词
+  {
+    re: /(凌晨|清晨|早晨|早上|上午|中午|午后|下午|傍晚|晚上|夜里|夜间|半夜)/g,
+    build: (m) => ({ type: 'daypart', dp: m[1] }),
+  },
+  // 模糊词
+  {
+    re: /(尽快|马上|立刻|立即|随时|方便的时候|有空|待定|之后再说|后续)/g,
+    build: (m) => ({ type: 'vague', word: m[1] }),
+  },
+];
+
+function makeAbs(y, yy, mm, dd, extra = {}) {
+  const Y = y != null ? (typeof y === 'number' ? y : cnToInt(y)) : yy != null ? cnToInt(yy) : null;
+  const M = typeof mm === 'number' ? mm : cnToInt(mm);
+  const D = dd == null ? null : (typeof dd === 'number' ? dd : cnToInt(dd));
+  if (M == null || M < 1 || M > 12) return null;
+  if (D != null && (D < 1 || D > 31)) return null;
+  return { type: 'absdate', y: Y && Y > 1900 ? Y : null, m: M, d: D, ...extra };
+}
+
+/** 扫出所有 token，再按「起点早、长度长」贪心去重叠 */
+function tokenize(text) {
+  const raw = [];
+  for (const p of PATTERNS) {
+    p.re.lastIndex = 0;
+    let m;
+    let guard = 0;
+    while ((m = p.re.exec(text)) !== null && guard++ < 5000) {
+      if (!m[0].length) { p.re.lastIndex++; continue; }
+      let tok = null;
+      try { tok = p.build(m, text); } catch { tok = null; }
+      if (!tok) continue;
+      raw.push({ ...tok, index: m.index, end: m.index + m[0].length, text: m[0] });
+    }
+  }
+  raw.sort((a, b) => a.index - b.index || (b.end - b.index) - (a.end - a.index));
+  const picked = [];
+  let lastEnd = -1;
+  for (const t of raw) {
+    if (t.index >= lastEnd) { picked.push(t); lastEnd = t.end; }
+  }
+  return picked;
+}
+
+/* ────────────────────────────── 语法：合并相邻 token ────────────────────────────── */
+
+const DATE_TYPES = new Set(['absdate', 'weekday', 'relday', 'period', 'dayonly', 'year']);
+const CONNECTOR = /^[\s的于在上·]{0,3}$/;
+
+function canFill(span, tok) {
+  if (tok.type === 'daypart') return !span.dp && !span.clock && !span.range;
+  if (tok.type === 'clock') return !span.clock && !span.range && !span.durrel;
+  if (tok.type === 'range') return !span.clock && !span.range;
+  if (DATE_TYPES.has(tok.type)) return !span.date;
+  return false;
+}
+
+function absorb(span, tok) {
+  if (tok.type === 'daypart') span.dp = tok.dp;
+  else if (tok.type === 'clock') span.clock = { h: tok.h, mi: tok.mi };
+  else if (tok.type === 'range') span.range = { a: tok.a, b: tok.b };
+  else { span.date = tok; if (tok.dp && !span.dp) span.dp = tok.dp; }
+  span.end = tok.end;
+  span.tokens.push(tok);
+}
+
+function buildSpans(text, tokens) {
+  const spans = [];
+  let i = 0;
+  while (i < tokens.length) {
+    const t = tokens[i];
+    const span = {
+      index: t.index, end: t.end, tokens: [t],
+      date: DATE_TYPES.has(t.type) ? t : null,
+      dp: t.type === 'daypart' ? t.dp : (t.dp || null),
+      clock: t.type === 'clock' ? { h: t.h, mi: t.mi } : null,
+      range: t.type === 'range' ? { a: t.a, b: t.b } : null,
+      durrel: t.type === 'durrel' ? t : null,
+      vague: t.type === 'vague' ? t.word : null,
+      isDeadline: false,
+    };
+    let j = i + 1;
+    while (j < tokens.length && !span.durrel && !span.vague) {
+      const nxt = tokens[j];
+      const gap = text.slice(span.end, nxt.index);
+      if (!CONNECTOR.test(gap)) break;
+      // 特例：2025年 + 5月3日 -> 合成完整日期
+      if (span.date && span.date.type === 'year' && nxt.type === 'absdate' && nxt.y == null) {
+        span.date = { ...nxt, y: span.date.y };
+        span.end = nxt.end;
+        span.tokens.push(nxt);
+        j++;
+        continue;
+      }
+      if (!canFill(span, nxt)) break;
+      absorb(span, nxt);
+      j++;
+    }
+    // 截止语义：后面跟 前 / 之前 / 以前 / 截止
+    const after = text.slice(span.end, span.end + 6);
+    const md = after.match(/^\s*(之前|以前|前|截止|为止)/);
+    if (md && !/前后/.test(after)) {
+      span.isDeadline = true;
+      span.end += md[0].length;
+    }
+    // 前面有「截止 / 截至 / DDL」
+    const before = text.slice(Math.max(0, span.index - 12), span.index);
+    if (/(截止|截至|deadline|ddl|最后期限|之前|以内|为止)/i.test(before)) span.isDeadline = true;
+
+    span.text = text.slice(span.index, span.end);
+    spans.push(span);
+    i = j;
+  }
+  return spans;
+}
+
+/* ────────────────────────────── 语义：解析成具体日期 ────────────────────────────── */
+
+function resolveDateTok(tok, ref) {
+  const now = startOfDay(ref);
+  if (!tok) return { base: now, precision: 'none' };
+
+  if (tok.type === 'absdate') {
+    let y = tok.y != null ? tok.y : ref.getFullYear();
+    let mo = tok.m;
+    if (mo == null && tok.monthOffset != null) mo = ref.getMonth() + 1 + tok.monthOffset;
+    if (tok.monthEnd) return { base: new Date(y, mo, 0), precision: 'day' }; // 下个月第 0 天 = 本月最后一天
+    if (tok.d == null) {
+      let d = new Date(y, mo - 1, 1);
+      if (tok.y == null && tok.m == null) {
+        // 无月份信息，仅占位
+      } else if (tok.y == null && d < addDays(now, -20)) {
+        d = new Date(y + 1, mo - 1, 1);
+      }
+      return { base: d, precision: 'month' };
+    }
+    let d = new Date(y, mo - 1, tok.d);
+    // 没写年份时：已经过去太久的日期理解为明年
+    if (tok.y == null && tok.m != null && d < addDays(now, -45)) d = new Date(y + 1, mo - 1, tok.d);
+    return { base: d, precision: 'day' };
+  }
+
+  if (tok.type === 'dayonly') {
+    let d = new Date(ref.getFullYear(), ref.getMonth(), tok.d);
+    if (tok.d < ref.getDate()) d = addMonths(d, 1);
+    return { base: d, precision: 'day' };
+  }
+
+  if (tok.type === 'relday') {
+    return { base: addDays(now, tok.rel), precision: 'day' };
+  }
+
+  if (tok.type === 'weekday') {
+    const refWd = ref.getDay() === 0 ? 7 : ref.getDay();
+    const weekStart = addDays(now, -(refWd - 1));
+    let offset = tok.weekOffset;
+    if (offset === 0 && !tok.explicit && tok.wd < refWd) offset = 1; // 「周五」在周六说 = 下周五
+    return { base: addDays(weekStart, offset * 7 + (tok.wd - 1)), precision: 'day' };
+  }
+
+  if (tok.type === 'period') {
+    const y = ref.getFullYear(), m = ref.getMonth();
+    switch (tok.key) {
+      case 'monthStart': return { base: new Date(y, m, 1), precision: 'month' };
+      case 'nextMonthStart': return { base: new Date(y, m + 1, 1), precision: 'month' };
+      case 'prevMonthStart': return { base: new Date(y, m - 1, 1), precision: 'month' };
+      case 'monthEnd': return { base: new Date(y, m + 1, 0), precision: 'day' };
+      case 'nextMonthEnd': return { base: new Date(y, m + 2, 0), precision: 'day' };
+      case 'monthEarly': return { base: new Date(y, m, 5), precision: 'day' };
+      case 'monthMid': return { base: new Date(y, m, 15), precision: 'day' };
+      case 'monthLate': return { base: new Date(y, m, 25), precision: 'day' };
+      case 'yearStart': return { base: new Date(y, 0, 1), precision: 'year' };
+      case 'nextYearStart': return { base: new Date(y + 1, 0, 1), precision: 'year' };
+      case 'prevYearStart': return { base: new Date(y - 1, 0, 1), precision: 'year' };
+      case 'yearEnd': return { base: new Date(y, 11, 31), precision: 'day' };
+      case 'nextYearEnd': return { base: new Date(y + 1, 11, 31), precision: 'day' };
+      case 'weekStart': {
+        const refWd = ref.getDay() === 0 ? 7 : ref.getDay();
+        return { base: addDays(now, -(refWd - 1)), precision: 'day' };
+      }
+      case 'nextWeekStart': {
+        const refWd = ref.getDay() === 0 ? 7 : ref.getDay();
+        return { base: addDays(now, 7 - (refWd - 1)), precision: 'day' };
+      }
+      case 'prevWeekStart': {
+        const refWd = ref.getDay() === 0 ? 7 : ref.getDay();
+        return { base: addDays(now, -7 - (refWd - 1)), precision: 'day' };
+      }
+      case 'h1': return { base: new Date(y, 0, 1), precision: 'month' };
+      case 'h2': return { base: new Date(y, 6, 1), precision: 'month' };
+      case 'quarterStart': { const q = Math.floor(m / 3) * 3; return { base: new Date(y, q, 1), precision: 'month' }; }
+      case 'nextQuarterStart': { const q = Math.floor(m / 3) * 3 + 3; return { base: new Date(y, q, 1), precision: 'month' }; }
+      default: return { base: now, precision: 'none' };
+    }
+  }
+
+  if (tok.type === 'year') {
+    if (tok.sub === '底' || tok.sub === '末') return { base: new Date(tok.y, 11, 31), precision: 'day' };
+    return { base: new Date(tok.y, 0, 1), precision: 'year' };
+  }
+
+  return { base: now, precision: 'none' };
+}
+
+function combine(base, h, mi) {
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, mi, 0, 0);
+}
+
+/** 时段词 + 小时 -> 24 小时制 */
+function adjustHour(dp, h) {
+  if (!dp) return h;
+  if (EVENING.has(dp)) return h < 12 ? h + 12 : (h === 12 ? 0 : h);
+  if (dp === '中午') return h < 11 ? h + 12 : h;
+  if (MORNING.has(dp)) return h === 12 ? 0 : h;
+  return h;
+}
+
+/** 把 span 解析成 {start, end2, precision, hasTime, isDeadline} */
+function resolveSpan(span, ref) {
+  // 相对时长：三天内 / 一周后
+  if (span.durrel) {
+    const { n, unit, mode } = span.durrel;
+    const MS = { day: 86400000, week: 604800000, month: 2592000000, hour: 3600000, minute: 60000 };
+    let ms = 0;
+    if (/天|日/.test(unit)) ms = n * MS.day;
+    else if (/周|星期/.test(unit)) ms = n * MS.week;
+    else if (/月/.test(unit)) ms = n * MS.month;
+    else if (/小时|钟头/.test(unit)) ms = n * MS.hour;
+    else if (/分钟/.test(unit)) ms = n * MS.minute;
+    const d = new Date(ref.getTime() + ms);
+    const hasTime = /小时|钟头|分钟/.test(unit);
+    return {
+      start: d, end2: null,
+      precision: hasTime ? 'minute' : 'day',
+      hasTime,
+      isDeadline: mode !== 'after' || span.isDeadline,
+      vague: false,
+    };
+  }
+
+  if (span.vague) {
+    // 模糊词：给个温和的提醒时间（今天/明天傍晚），不硬塞日期
+    return { start: null, end2: null, precision: 'none', hasTime: false, isDeadline: false, vague: true };
+  }
+
+  const { base, precision: dp0 } = resolveDateTok(span.date, ref);
+  let precision = dp0;
+
+  if (span.range) {
+    const s = combine(base, adjustHour(span.dp, span.range.a.h), span.range.a.mi);
+    let e = combine(base, adjustHour(span.dp, span.range.b.h), span.range.b.mi);
+    if (e <= s) e = addDays(e, 1);
+    // 没写日期且整段已经过去 -> 顺延到明天
+    if (!span.date && e.getTime() < ref.getTime() - 15 * 60000) {
+      return { start: addDays(s, 1), end2: addDays(e, 1), precision: 'minute', hasTime: true, isDeadline: span.isDeadline, vague: false };
+    }
+    return { start: s, end2: e, precision: 'minute', hasTime: true, isDeadline: span.isDeadline, vague: false };
+  }
+
+  if (span.clock) {
+    const h = adjustHour(span.dp, span.clock.h);
+    let s = combine(base, h, span.clock.mi);
+    // 没写日期、时刻已经明显过去 -> 明天
+    if (!span.date && s.getTime() < ref.getTime() - 15 * 60000) s = addDays(s, 1);
+    return { start: s, end2: null, precision: 'minute', hasTime: true, isDeadline: span.isDeadline, vague: false };
+  }
+
+  if (span.dp && !span.date) {
+    const [h, mi] = DAYPART_TIME[span.dp] || [9, 0];
+    let s = combine(base, h, mi);
+    if (s.getTime() < ref.getTime() - 15 * 60000) s = addDays(s, 1);
+    return { start: s, end2: null, precision: 'daypart', hasTime: true, isDeadline: span.isDeadline, vague: false };
+  }
+
+  if (span.dp && span.date) {
+    const [h, mi] = DAYPART_TIME[span.dp] || [9, 0];
+    return { start: combine(base, h, mi), end2: null, precision: 'daypart', hasTime: true, isDeadline: span.isDeadline, vague: false };
+  }
+
+  if (!span.date) return { start: null, end2: null, precision: 'none', hasTime: false, isDeadline: false, vague: false };
+
+  // 只有日期
+  if (precision === 'month' || precision === 'year') {
+    return { start: base, end2: null, precision, hasTime: false, isDeadline: span.isDeadline, vague: false };
+  }
+  return { start: startOfDay(base), end2: null, precision: 'day', hasTime: false, isDeadline: span.isDeadline, vague: false };
+}
+
+function findTimes(text, opts = {}) {
+  const ref = opts.now instanceof Date ? opts.now : new Date();
+  const tokens = tokenize(text);
+  const spans = buildSpans(text, tokens);
+  const out = [];
+  for (const sp of spans) {
+    const r = resolveSpan(sp, ref);
+    if (!r.start && !r.vague) continue;
+    out.push({
+      index: sp.index, end: sp.end, text: sp.text,
+      ...r,
+      kind: r.isDeadline ? 'deadline' : (r.start && r.start.getHours() === 0 && r.start.getMinutes() === 0 && !r.hasTime ? 'day' : 'point'),
+    });
+  }
+  return out;
+}
+
+function parseWhen(text, opts = {}) {
+  const all = findTimes(text, opts);
+  return all.find((t) => t.start) || null;
+}
+
+/* ────────────────────────────── 人话标签 ────────────────────────────── */
+
+function describeWhen(due, opts = {}) {
+  if (!due) return '';
+  const now = opts.now instanceof Date ? opts.now : new Date();
+  const d = due instanceof Date ? due : new Date(due);
+  if (Number.isNaN(d.getTime())) return '';
+  const precision = opts.precision || 'minute';
+  const diff = daysBetween(now, d);
+
+  const wd = WEEKDAY_NAMES[d.getDay()];
+  const ymd = `${d.getMonth() + 1}月${d.getDate()}日`;
+  const hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+  let day;
+  if (diff === 0) day = '今天';
+  else if (diff === 1) day = '明天';
+  else if (diff === 2) day = '后天';
+  else if (diff === -1) day = '昨天';
+  else if (diff > 2 && diff < 7) day = `周${wd}`;
+  else if (d.getFullYear() === now.getFullYear()) day = `${ymd} 周${wd}`;
+  else day = `${d.getFullYear()}年${ymd}`;
+
+  if (diff < 0 && opts.overdue !== false) day = `已逾期${-diff}天 · ${day}`;
+
+  if (precision === 'month') return `${d.getFullYear()}年${d.getMonth() + 1}月`;
+  if (precision === 'year') return `${d.getFullYear()}年`;
+  if (precision === 'day') return `${day} 全天`;
+  return `${day} ${hm}`;
+}
+
+  exports.tokenize = tokenize;
+  exports.resolveSpan = resolveSpan;
+  exports.findTimes = findTimes;
+  exports.parseWhen = parseWhen;
+  exports.describeWhen = describeWhen;
+  exports.WEEKDAY_NAMES = WEEKDAY_NAMES;
+};
+__defs["fields.js"] = function (module, exports, __req) {
+// src/fields.js —— 地点 / 人物 / 联系方式 / 优先级 / 分类 的抽取规则
+// 所有函数只依赖传入的字符串（外加 offset 对齐的空白化文本），便于单测。
+
+/** 场所后缀（长的排前面，保证「大会议室」不被「室」抢先截断） */
+const PLACE_SUFFIX = [
+  '会议室', '会议中心', '会议厅', '办公室', '教室', '餐厅', '食堂', '酒店', '宾馆',
+  '大厦', '广场', '公园', '医院', '学校', '大学', '校区', '园区', '机场', '车站',
+  '地铁站', '火车站', '图书馆', '体育馆', '展览馆', '博物馆', '大厅', '前台',
+  '门口', '礼堂', '活动室', '实验室', '工作室', '门店', '服务中心', '派出所',
+  '健身房', '银行', '超市', '商场', '药店', '楼层', '中心', '基地', '公司',
+  '工厂', '家', '楼', '层', '室', '厅', '馆', '院', '站', '路', '街', '道', '店',
+].join('|');
+
+const PLACE_RE = new RegExp(
+  `(?:地点|地址|位置|场地|会议地点|集合地点|开会地点|场地地点)\\s*(?:是|为)?\\s*[:：]?\\s*([^，。；;\\n！？!?]{2,40})` +
+  `|(?:在|于|到|去|前往|来到)\\s*([\\u4e00-\\u9fa5A-Za-z0-9（）()·\\-#\\s]{0,20}(?:${PLACE_SUFFIX}))` +
+  `|(线上|线下|网上|云端|腾讯会议|钉钉会议|飞书会议|视频会议|微信群|QQ群|群聊|语音会议)`,
+  'g'
+);
+
+const ONLINE_MEETING = /(腾讯会议|钉钉|飞书|Zoom|Teams|Webex|腾讯会议号|会议号|会议\\s*ID|房间号|会议链接)/i;
+const URL_RE = /https?:\/\/[^\s，。；)）]+/i;
+const MEETING_ID_RE = /(?:会议号|会议\s*ID|房间号|会议码)\s*[:：]?\s*([\d\s\-]{6,20})/i;
+
+/** 把若干区间替换成等长空格（保持偏移不变） */
+function blankSpans(text, spans) {
+  if (!spans || !spans.length) return text;
+  const arr = [...text];
+  for (const s of spans) {
+    for (let i = s.index; i < s.end && i < arr.length; i++) arr[i] = ' ';
+  }
+  return arr.join('');
+}
+
+/** 找出地点，返回第一个可用结果 */
+function findPlace(text, timeSpans = []) {
+  const masked = blankSpans(text, timeSpans);
+  let best = null;
+
+  // 线上会议优先（比实体地点更具体）
+  const idMatch = MEETING_ID_RE.exec(masked);
+  const urlMatch = URL_RE.exec(masked);
+  if (ONLINE_MEETING.test(masked)) {
+    const kind = (masked.match(/腾讯会议/) && '腾讯会议')
+      || (masked.match(/钉钉/) && '钉钉会议')
+      || (masked.match(/飞书/) && '飞书会议')
+      || (masked.match(/Zoom/i) && 'Zoom')
+      || (masked.match(/Teams/i) && 'Teams')
+      || (masked.match(/视频会议/) && '视频会议')
+      || (masked.match(/微信群|群聊/) && '微信群')
+      || '线上';
+    let place = kind;
+    if (idMatch) place += `（会议号 ${idMatch[1].trim().replace(/\s+/g, '')}）`;
+    const idx = Math.max(0, masked.search(new RegExp(kind, 'i')));
+    let end = idx + kind.length;
+    if (idMatch) end = Math.max(end, idMatch.index + idMatch[0].length);
+    while (end < masked.length && /[）)】」\s]/.test(masked[end])) end++;
+    return { place, index: idx, end, online: true };
+  }
+  if (urlMatch) {
+    return { place: '线上（会议链接）', index: urlMatch.index, end: urlMatch.index + urlMatch[0].length, online: true };
+  }
+
+  PLACE_RE.lastIndex = 0;
+  let m;
+  while ((m = PLACE_RE.exec(masked)) !== null) {
+    const raw = (m[1] || m[2] || m[3] || '').trim();
+    let place = cleanPlace(raw);
+    if (!place) continue;
+    const offsetInMatch = m[0].lastIndexOf(raw);
+    const start = m.index + Math.max(0, offsetInMatch);
+    const cand = { place, index: start, end: start + raw.length, online: /线上|网上|云端/.test(place) };
+    // 越具体（带场所后缀、越长）越优先
+    if (!best || scorePlace(cand.place) > scorePlace(best.place)) best = cand;
+  }
+  return best;
+}
+
+function cleanPlace(s) {
+  let p = String(s || '')
+    .replace(/^(的|了|是|在|于|去|到)/, '')
+    .replace(/[，。；;、\s]+$/, '')
+    .replace(/^[\s:：]+/, '')
+    .trim();
+  if (!p || p.length < 1) return '';
+  if (/^(这里|那里|哪里|这边|那边|现场|各位|大家)$/.test(p)) return '';
+  return p;
+}
+
+function scorePlace(p) {
+  let s = p.length;
+  if (/会议室|会议中心|会议厅|办公室|教室|酒店|餐厅|大厅|礼堂/.test(p)) s += 6;
+  if (/楼|层|室|厅|馆/.test(p)) s += 3;
+  if (/^\d+$/.test(p)) s -= 10;
+  return s;
+}
+
+const TITLES = '老师|经理|主任|总监|同学|医生|师傅|同事|助理|秘书|部长|处长|科长|老板|护士|警官|律师|会计';
+const SURNAMES = '赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜谢邹喻柏窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯昝管卢莫经房裘缪干解应宗丁宣贲邓郁单杭洪包诸左石崔吉钮龚程嵇邢滑裴陆荣翁荀羊於惠甄曲家封芮羿储靳汲邴糜松井段富巫乌焦巴弓牧隗山谷车侯宓蓬全郗班仰秋仲伊宫宁仇栾暴甘钭厉戎祖武符刘景詹束龙叶幸司韶郜黎蓟薄印宿白怀蒲邰从鄂索咸籍赖卓蔺屠蒙池乔阴鬱胥能苍双闻莘党翟谭贡劳逄姬申扶堵冉宰郦雍卻璩桑桂濮牛寿通边扈燕冀郏浦尚农温别庄晏柴瞿阎充慕连茹习宦艾鱼容向古易慎戈廖庾终暨居衡步都耿满弘匡国文寇广禄阙东欧殳沃利蔚越夔隆师巩厍聂晁勾敖融冷訾辛阚那简饶空曾毋沙乜养鞠须丰巢关蒯相查后荆红游竺权逯盖益桓公';
+
+const NAME_STOP = new Set([
+  '时间', '地点', '大家', '部门', '公司', '负责', '通知', '确认', '回复', '准备', '材料',
+  '文件', '明天', '后天', '今天', '上午', '下午', '晚上', '中午', '我们', '你们', '他们',
+  '自己', '同事', '领导', '老师', '学生', '会议', '报告', '地址', '电话', '事项', '问题',
+  '情况', '意见', '结果', '计划', '项目', '之前', '以后', '相关', '人员', '单位', '系统',
+  '平台', '微信', '邮箱', '表格', '费用', '发票', '单据', '报销', '以下', '以上', '其他',
+  '具体', '备注', '注意', '提醒', '要求', '时候', '地方', '东西', '事情', '工作', '上面',
+  '下面', '里面', '外面', '前面', '后面', '左边', '右边', '时间表', '负责人', '联系人',
+  '客户', '甲方', '乙方', '财务', '行政', '人事', '采购', '后勤', '技术', '产品', '运营',
+  '销售', '市场', '设计', '研发', '全体', '各位', '同学', '家长', '朋友们', '邀请',
+  '提前', '一下', '这个', '那个', '今天', '后天', '各位', '部门', '负责人', '这边', '那边',
+]);
+
+/** 名字里不该出现的「功能字」 */
+const NAME_BAD = /[的了是在和与跟把被为对从到这那什么怎么还有你我他她它给报周交发送提请要都得地着过上下都也就还再让部局处科室系组队会班一二三四五六七八九十第年月日时分秒]/;
+
+function isName(s) {
+  if (!s || s.length < 2 || s.length > 4) return false;
+  if (NAME_STOP.has(s)) return false;
+  if (NAME_BAD.test(s)) return false;
+  if (/^\d+$/.test(s)) return false;
+  return true;
+}
+
+/**
+ * 从一串可能带脏字符的片段里挑出最像人名的部分：
+ * 先试 3 字，再 2 字，最后 1 字（1 字只认常见姓）。
+ */
+function pickName(run) {
+  const s = String(run || '').trim();
+  if (!s) return null;
+  for (const n of [3, 2]) {
+    if (s.length < n) continue;
+    const cand = s.slice(-n);
+    if (isName(cand)) return cand;
+  }
+  const c1 = s.slice(-1);
+  if (c1 && SURNAMES.includes(c1)) return c1;
+  return null;
+}
+
+const PHONE_RE = /(?:电话|手机|联系|致电)?\s*(1[3-9]\d{9}|0\d{2,3}-?\d{7,8}|400-?\d{3}-?\d{4})/g;
+
+/** 找出人物（含 @昵称、负责人、电话） */
+function findPeople(text, timeSpans = []) {
+  const masked = blankSpans(text, timeSpans);
+  const people = new Set();
+  const phones = new Set();
+  let m;
+
+  // 带职务：王小明老师 / 李医生
+  const reTitle = new RegExp(`([\\u4e00-\\u9fa5]{1,4})(${TITLES})`, 'g');
+  while ((m = reTitle.exec(masked)) !== null) {
+    const n = pickName(m[1]);
+    if (n) people.add(n.length === 1 ? n + m[2] : n);
+  }
+
+  // 动词 + 姓名（要求右边界干净）
+  const reVerb = /(?:联系|通知|提醒|找|交给|发给|汇报给|对接|请教)\s*([\u4e00-\u9fa5]{2,4})(?=处|那边|这边|一下|过来|[，。、；;：:\s]|$)/g;
+  while ((m = reVerb.exec(masked)) !== null) {
+    const n = pickName(m[1]);
+    if (n) people.add(n);
+  }
+
+  // 小张 / 老王 这类昵称
+  const reNick = /(?:交给|发给|交给|找|联系|通知|提醒|请问|问)\s*[\u4e00-\u9fa5]{0,6}?([小老][\u4e00-\u9fa5])(?=处|那边|这儿|[，。、；;：:\s）)]|$)/g;
+  while ((m = reNick.exec(masked)) !== null) {
+    if (!NAME_STOP.has(m[1])) people.add(m[1]);
+  }
+
+  // 负责人：X
+  const reOwner = /(?:负责人|联系人|经办人|对接人)\s*[:：]\s*([\u4e00-\u9fa5]{2,3})/g;
+  while ((m = reOwner.exec(masked)) !== null) {
+    if (isName(m[1])) people.add(m[1]);
+  }
+
+  // @昵称
+  const reAt = /@([\w\u4e00-\u9fa5]{2,20})/g;
+  while ((m = reAt.exec(masked)) !== null) people.add(m[1]);
+
+  PHONE_RE.lastIndex = 0;
+  while ((m = PHONE_RE.exec(masked)) !== null) phones.add(m[1]);
+
+  return { people: [...people], phones: [...phones] };
+}
+
+/** 优先级 */
+function findPriority(text) {
+  const high = /(重要|紧急|务必|必须|一定要|尽快|马上|立刻|立即|加急|勿忘|别忘了|最后期限|deadline|ddl|优先处理|特急|急)/i;
+  const low = /(有空|方便时|有时间|可选|不急|看情况|随缘|尽量就好)/;
+  if (high.test(text)) return 'high';
+  if (low.test(text)) return 'low';
+  return 'normal';
+}
+
+/** 分类 */
+const CATS = {
+  work: ['会议', '开会', '汇报', '报告', '项目', '客户', '领导', '部门', '公司', '上班', '加班', '方案', '需求', '上线', '评审', '甲方', '乙方', '周报', '月报', '绩效', '面试', '培训', '合同', '签字', '审批'],
+  study: ['作业', '考试', '复习', '课程', '上课', '论文', '老师', '同学', '学习', '讲座', '答辩', '实验', '学费', '教材', '背单词', '预习'],
+  life: ['快递', '外卖', '超市', '买', '做饭', '打扫', '洗衣', '搬家', '修理', '取件', '垃圾', '水电', '物业', '宠物', '遛狗'],
+  health: ['体检', '医院', '医生', '挂号', '疫苗', '药', '看病', '复诊', '运动', '健身', '牙', '睡眠', '跑步'],
+  money: ['报销', '发票', '缴费', '转账', '付款', '退款', '工资', '账单', '贷款', '信用卡', '续费', '充值', '交费', '房租', '押金', '转账'],
+  social: ['聚餐', '聚会', '生日', '婚礼', '朋友', '见面', '拜访', '团建', '送礼', '约会', '婚礼', '请客'],
+};
+
+function findCategory(text) {
+  let bestKey = 'other', best = 0;
+  for (const [k, words] of Object.entries(CATS)) {
+    let n = 0;
+    for (const w of words) if (text.includes(w)) n++;
+    if (n > best) { best = n; bestKey = k; }
+  }
+  return bestKey;
+}
+
+/** 备注线索：明确要求带走/携带/注意的东西 */
+const NOTE_MARKERS = /(?:备注|注意|提醒|须知|要求|携带|带上|带着|自带|记得|别忘了|请带|需带|必须带|准备|准备一下|最好|不要|切勿|禁止|逾期|过期|否则|否则|如需|如果有|地点变|改到|改期|取消|押金|费用|自费|每人|限额)[:：]?\s*([^。；;！？!?\n]{2,60})/g;
+
+function findNoteHints(text) {
+  const out = [];
+  NOTE_MARKERS.lastIndex = 0;
+  let m;
+  while ((m = NOTE_MARKERS.exec(text)) !== null) {
+    const t = (m[1] || '').trim().replace(/^[:：，,、\s]+/, '');
+    if (t.length < 3) continue;
+    if (/^(一下|下|吧|了|的|哦|呀|啊)$/.test(t)) continue;
+    out.push(t);
+  }
+  return out;
+}
+
+/** 动作动词（用来判断一句话是不是「要干的事」） */
+const ACTION_VERBS = [
+  '参加', '出席', '开会', '召开', '举行', '举办', '组织', '会诊', '提交', '上交', '交纳',
+  '缴纳', '缴费', '付款', '付', '转账', '报名', '确认', '回复', '答复', '反馈', '准备',
+  '整理', '检查', '审核', '审批', '发送', '领取', '携带', '购买', '预约', '预定', '订',
+  '联系', '打电话', '致电', '通知', '提醒', '完成', '填报', '上传', '下载', '打印', '复印',
+  '签字', '面谈', '面试', '汇报', '讨论', '培训', '学习', '复习', '考试', '体检', '打疫苗',
+  '看病', '搬家', '接送', '出发', '沟通', '对接', '上线', '发布', '更新', '备份', '验收',
+  '安装', '维修', '报销', '续费', '充值', '聚餐', '吃饭', '用餐', '团建', '值班', '打卡',
+  '签到', '申请', '办理', '续签', '签收', '邮寄', '寄出', '归还', '查看', '阅读', '练习',
+  '修改', '完善', '跟进', '催', '核对', '对账', '结账', '报到', '入职', '离职', '交接',
+  '买', '取', '带', '发', '交', '送', '接', '写', '填', '抄', '改', '借', '还', '洗',
+];
+
+const ACTION_RE = new RegExp(ACTION_VERBS.join('|'));
+/** 事件名词：这类句子即使没有动词，也基本是在说一件事 */
+const EVENT_NOUN_RE = /(聚餐|吃饭|会议|开会|讲座|面试|体检|报名|预约|汇报|上课|培训|总结会|讨论会|评审会|答辩|考试|婚礼|团建|年会|活动)/;
+
+function hasAction(text) {
+  return ACTION_RE.test(text) || EVENT_NOUN_RE.test(text);
+}
+
+  exports.blankSpans = blankSpans;
+  exports.findPlace = findPlace;
+  exports.pickName = pickName;
+  exports.findPeople = findPeople;
+  exports.findPriority = findPriority;
+  exports.findCategory = findCategory;
+  exports.findNoteHints = findNoteHints;
+  exports.hasAction = hasAction;
+  exports.ACTION_VERBS = ACTION_VERBS;
+};
+__defs["extract.js"] = function (module, exports, __req) {
+// src/extract.js —— 抽取流水线
+//
+//   原文 → 归一化 → 切行 → 切句 → 认「事件单元」→ 逐字段抽取 → 合并去重 → 置信度
+//
+// 一条 item:
+//   { title, due, dueText, dueEnd, precision, deadline, place, people, phones,
+//     notes, priority, category, confidence, weak, source:{text,marks} }
+//   due 形如 '2025-05-09T10:00'（本地墙钟时间，直接喂 datetime-local）
+const { normalize, tidy, truncate, similarity, clamp, toLocalInput } = __req('util.js');
+const { findTimes, describeWhen } = __req('time.js');
+const { findPlace, findPeople, findPriority, findCategory, findNoteHints, hasAction, blankSpans } = __req('fields.js');
+
+const MAX_TITLE = 42;
+
+/* ────────────── 切分 ────────────── */
+
+/** 按行切块，保留偏移 */
+function splitBlocks(text) {
+  const out = [];
+  const re = /[^\n\r]+/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const raw = m[0];
+    out.push({ start: m.index, end: m.index + raw.length, text: raw });
+  }
+  return out;
+}
+
+const CLAUSE_DELIM = '，。；！？,;!?、';
+
+/** 按标点切句（冒号只在非数字之间切，避免把 9:30 切开） */
+function splitClauses(text, start = 0, end = text.length) {
+  const out = [];
+  let s = start;
+  const isNum = (c) => c != null && /[0-9]/.test(c);
+  for (let i = start; i < end; i++) {
+    const c = text[i];
+    let cut = CLAUSE_DELIM.includes(c);
+    if (!cut && (c === '：' || c === ':')) cut = !isNum(text[i - 1]) && !isNum(text[i + 1]);
+    if (cut) {
+      if (i > s) out.push({ start: s, end: i, text: text.slice(s, i) });
+      s = i + 1;
+    }
+  }
+  if (end > s) out.push({ start: s, end, text: text.slice(s, end) });
+  return out;
+}
+
+/** 去掉行首的列表符号：1. / 1、/ （1）/ ① / - / • / 一、 */
+function stripListMarker(block) {
+  const re = /^\s*(?:[（(]?\d{1,2}[.、)）]|[①-⑳]|[一二三四五六七八九十]{1,2}[、.]|[-*•·●▪—])\s*/;
+  const m = block.text.match(re);
+  if (!m) return block;
+  const start = block.start + m[0].length;
+  return { start, end: block.end, text: block.text.slice(m[0].length) };
+}
+
+/* ────────────── 事件单元 ────────────── */
+
+function buildUnits(block, times) {
+  const clauses = splitClauses(block.text, 0, block.text.length);
+  const units = [];
+  let pending = null;
+
+  for (const cl of clauses) {
+    // 时间锚点：起点落在这句里
+    const anchors = times.filter((t) => t.index >= cl.start && t.index < cl.end);
+    if (anchors.length) {
+      const unit = { clauses: [], anchors: [], start: cl.start, end: cl.end };
+      if (pending) {
+        // 前面那句没有时间（多半是「关于××的通知」或主语），并进来当上下文
+        unit.clauses = pending.clauses;
+        unit.start = pending.start;
+        pending = null;
+      }
+      unit.clauses.push(cl);
+      unit.anchors.push(...anchors);
+      unit.end = cl.end;
+      units.push(unit);
+    } else if (units.length && !pending) {
+      // 没有时间锚点、也没有新单元在等 -> 归到上一个单元（「记得带上…」）
+      const last = units[units.length - 1];
+      last.clauses.push(cl);
+      last.end = cl.end;
+    } else {
+      if (!pending) pending = { clauses: [], anchors: [], start: cl.start, end: cl.end };
+      pending.clauses.push(cl);
+      pending.end = cl.end;
+    }
+  }
+  if (pending) units.push(pending);
+  return units;
+}
+
+/* ────────────── 标题 ────────────── */
+
+const LEAD_FILLER = /^(?:(?:请务必|麻烦|请|务必|记得|一定要|需要|还需要|还得|还要|顺便|另外|同时|此外|以及|并|且|然后|接着|最好|尽量|于|在|把|将|我们|你们|各位|大家|同学们|同事们|各部门|有|还|就)\s*)+/;
+
+function cleanTitle(s) {
+  let t = String(s || '');
+  t = t.replace(/[ \t\u00a0]+/g, ' ');
+  // 中文之间的空白直接吃掉（时间/地点被抹掉后留下的空洞）
+  t = t.replace(/(?<=[\u4e00-\u9fa5，。、；：])[ ]+(?=[\u4e00-\u9fa5，。、；：])/g, '');
+  t = t.replace(/^[【\[][^】\]]{0,14}[】\]]\s*/, '');
+  t = t.trimStart();
+  t = t.replace(LEAD_FILLER, '');
+  t = t.trimStart();
+  t = t.replace(LEAD_FILLER, '');
+  t = t.replace(/^[的了是在，,、;；:：\-–—\s]+/, '');
+  t = t.replace(/[，,、;；:：\s]+$/, '');
+  t = t.replace(/(?:了|吧|呢|啊|哦|呀|嘛)$/, '');
+  return tidy(t);
+}
+
+const MODIFIER_LEAD = /^(?:务必|准时|按时|提前|一定|千万|尽量|最好|请|记得|别忘|不要|切勿|直接|立刻|马上|尽快)/;
+const FILLER_ONLY = /^(?:最后|另外|还有|此外|同时|以及|然后|接下来|补充一下|最后提醒一下|特此通知|请知悉|谢谢|收到|好的|嗯+|ok)[\s:：吧了。！!]*$/i;
+
+function scoreClause(cl, ctx) {
+  const txt = cl.text.trim();
+  if (!txt) return -99;
+  let s = 0;
+  const afterBlank = blankSpans(cl.text, ctx.timesInClause.map((t) => ({ index: t.index - cl.start, end: t.end - cl.start }))).trim();
+  const meaningful = afterBlank.replace(/[\s，,、。：:]/g, '');
+  if (ctx.timesInClause.length) s += 1;
+  if (ctx.hasPrimary) s += 5;                       // 主时间所在的那句通常是事件本体
+  if (hasAction(txt)) s += 4;
+  if (/(请|需要|务必|要|记得|别忘了|麻烦)/.test(txt)) s += 1.5;
+  if (MODIFIER_LEAD.test(meaningful)) s -= 2.5;     // 「务必准时参加」是修饰语，不是主体
+  if (FILLER_ONLY.test(txt)) s -= 8;
+  if (meaningful.length < 4) s -= 6;
+  if (/(通知|公告|须知|安排|提醒|如下|内容|事项|方案|说明)$/.test(txt) && !hasAction(txt)) s -= 4;
+  if (meaningful.length >= 4 && meaningful.length <= 34) s += 2;
+  s += Math.min(meaningful.length, 30) / 12;        // 同等条件下，信息量大的句子优先
+  if (/(会议|开会|参加|提交|缴费|报名|面试|体检|回复|确认|预约|领取|检查|整理|复习|考试|聚餐|付款|报销|材料|单据|报告|周报)/.test(txt)) s += 1.5;
+  if (/^(关于|有关|—|【|\[)/.test(txt)) s -= 3.5;
+  return s;
+}
+
+function makeTitle(unit, ctx) {
+  const clauses = unit.clauses.filter((c) => c.text.trim());
+  if (!clauses.length) return { title: '', clause: null, weak: true };
+  const primaryIdx = ctx.primaryIndex;
+
+  const scored = clauses.map((c) => {
+    const timesInClause = unit.anchors.filter((t) => t.index >= c.start && t.index < c.end);
+    const hasPrimary = primaryIdx != null && primaryIdx >= c.start && primaryIdx < c.end;
+    return { c, score: scoreClause(c, { timesInClause, hasPrimary }), timesInClause };
+  }).sort((a, b) => b.score - a.score);
+
+  for (const cand of scored) {
+    const { c, timesInClause } = cand;
+    const marks = [
+      ...timesInClause.map((t) => ({ index: t.index - c.start, end: t.end - c.start })),
+      ...ctx.placeSpansInClause(c),
+    ];
+    let t = blankSpans(c.text, marks);
+    t = cleanTitle(t);
+    if (t.length >= 2) return { title: truncate(t, MAX_TITLE), clause: c, weak: !hasAction(t) };
+  }
+  const first = clauses[0];
+  return { title: truncate(cleanTitle(first.text) || tidy(first.text), MAX_TITLE), clause: first, weak: true };
+}
+
+/* ────────────── 主流程 ────────────── */
+
+function extract(rawText, opts = {}) {
+  const now = opts.now instanceof Date ? opts.now : new Date();
+  const text = normalize(rawText || '');
+  const items = [];
+
+  for (const rawBlock of splitBlocks(text)) {
+    const block = stripListMarker(rawBlock);
+    if (!block.text.trim()) continue;
+    // 纯符号行跳过
+    if (!/[\u4e00-\u9fa5A-Za-z0-9]/.test(block.text)) continue;
+
+    const times = findTimes(block.text, { now });
+    const units = buildUnits(block, times);
+
+    for (const unit of units) {
+      const item = buildItem(block, unit, { now });
+      if (item) items.push(item);
+    }
+  }
+
+  const merged = mergeItems(items);
+  merged.sort(sortItems);
+  return { items: merged, stats: { blocks: splitBlocks(text).length, count: merged.length } };
+}
+
+function buildItem(block, unit, ctx) {
+  const { now } = ctx;
+  const unitText = block.text.slice(unit.start, unit.end);
+  if (!unitText.trim()) return null;
+
+  const anchors = [...unit.anchors].sort((a, b) => a.index - b.index);
+  const primary = anchors.find((a) => a.start) || anchors[0] || null;
+  const place = findPlace(unitText, anchors.map((a) => ({ ...a, index: a.index - unit.start, end: a.end - unit.start })));
+  const placeSpan = place ? [{ index: place.index + unit.start, end: place.end + unit.start }] : [];
+
+  const titleInfo = makeTitle(unit, {
+    primaryIndex: primary ? primary.index : null,
+    placeSpansInClause: (cl) => placeSpan
+      .filter((p) => p.index >= cl.start && p.end <= cl.end)
+      .map((p) => ({ index: p.index - cl.start, end: p.end - cl.start })),
+  });
+
+  if (!titleInfo.title || titleInfo.title.length < 2) return null;
+
+  const { people, phones } = findPeople(unitText);
+  const priority = findPriority(unitText);
+  const category = findCategory(unitText + titleInfo.title);
+
+  // ── 备注：非标题句 + 线索 + 额外时间
+  const noteParts = [];
+  const placeStr = place ? place.place : '';
+  for (const cl of unit.clauses) {
+    if (titleInfo.clause && cl.start === titleInfo.clause.start) continue;
+    const t = cl.text.trim();
+    if (!t || t.length < 2) continue;
+    if (FILLER_ONLY.test(t)) continue;
+    if (t.length < 14 && /(各位|通知|公告|须知|大家好|特此|敬上)/.test(t)) continue; // 抬头/落款
+    if (placeStr && t.includes(placeStr) && t.length < placeStr.length + 8) continue;   // 只是地点
+    if (phones.some((p) => t.includes(p))) continue;                                    // 电话单独放
+    if (t.length < 6 && !hasAction(t) && !/[:：]/.test(t)) continue;
+    noteParts.push(t);
+  }
+  for (const h of findNoteHints(unitText)) noteParts.push(h);
+  if (primary && primary.vague) noteParts.push(`时间表述模糊（${primary.text}），建议补一个具体时间`);
+  if (anchors.length > 1) {
+    for (const a of anchors.slice(1)) {
+      if (a.start) noteParts.push(`另一个时间：${a.text}（${describeWhen(a.start, { now, precision: a.precision })}）`);
+    }
+  }
+  if (phones.length) noteParts.push(`电话：${phones.join(' / ')}`);
+
+  const notes = uniqJoin(noteParts.filter((p) => !isSubOf(p, titleInfo.title)));
+
+  // ── 时间
+  let due = null, dueEnd = null, dueText = '', precision = 'none', deadline = false;
+  if (primary && primary.start) {
+    due = toLocalInput(primary.start);
+    dueEnd = primary.end2 ? toLocalInput(primary.end2) : null;
+    dueText = primary.text.trim();
+    precision = primary.precision;
+    deadline = !!primary.isDeadline;
+  }
+
+  // ── 置信度
+  let conf = 0.34;
+  if (due) conf += 0.26;
+  if (place) conf += 0.12;
+  if (people.length) conf += 0.05;
+  if (notes) conf += 0.07;
+  if (hasAction(titleInfo.title)) conf += 0.13;
+  if (titleInfo.weak) conf -= 0.17;
+  if (titleInfo.title.length < 4) conf -= 0.08;
+  conf = clamp(conf, 0.15, 0.98);
+
+  // ── 原文出处 + 高亮标记
+  const marks = [];
+  if (titleInfo.clause) {
+    marks.push({ field: 'title', start: titleInfo.clause.start - unit.start, end: titleInfo.clause.end - unit.start });
+  }
+  for (const a of anchors) {
+    marks.push({ field: 'due', start: a.index - unit.start, end: a.end - unit.start });
+  }
+  if (place) {
+    marks.push({ field: 'place', start: place.index, end: place.end });
+  }
+
+  return {
+    title: titleInfo.title,
+    due, dueEnd, dueText, precision, deadline,
+    place: place ? place.place : '',
+    people, phones, notes,
+    priority, category,
+    confidence: Math.round(conf * 100) / 100,
+    weak: !!titleInfo.weak,
+    source: { text: unitText.trim(), marks: marks.filter((m) => m.end > m.start) },
+  };
+}
+
+/** p 是否只是标题的碎片（避免备注里重复标题内容） */
+function isSubOf(p, title) {
+  if (!p || !title) return false;
+  const a = String(p).replace(/[\s，,。、；;：:]/g, '');
+  const b = String(title).replace(/[\s，,。、；;：:]/g, '');
+  if (!a) return true;
+  return a === b || (a.length >= 2 && b.includes(a));
+}
+
+function uniqJoin(parts) {
+  const out = [];
+  for (const p of parts) {
+    const t = tidy(p);
+    if (!t || t.length < 2) continue;
+    if (out.some((o) => o === t || o.includes(t) || t.includes(o))) continue;
+    out.push(t);
+  }
+  return out.join('；');
+}
+
+/** 同一段时间 + 高度相似的标题 -> 合并（长文里常见的重复表述） */
+function mergeItems(items) {
+  const out = [];
+  for (const it of items) {
+    const hit = out.find((o) => {
+      if (!it.title || !o.title) return false;
+      const sim = similarity(o.title, it.title);
+      const sameDue = (o.due || '') === (it.due || '');
+      if (sim >= 0.62) return true;
+      if (sameDue && sim >= 0.42) return true;
+      if (sameDue && (o.title.includes(it.title) || it.title.includes(o.title))) return true;
+      return false;
+    });
+    if (hit) {
+      if (it.title.length > hit.title.length) hit.title = it.title;
+      if (!hit.place && it.place) hit.place = it.place;
+      if (!hit.due && it.due) { hit.due = it.due; hit.dueText = it.dueText; hit.dueEnd = it.dueEnd; hit.precision = it.precision; hit.deadline = it.deadline; }
+      hit.people = [...new Set([...hit.people, ...it.people])];
+      hit.notes = uniqJoin([hit.notes, it.notes].filter(Boolean));
+      hit.confidence = Math.max(hit.confidence, it.confidence);
+      hit.source.text = hit.source.text + ' ' + it.source.text;
+      hit.source.marks = [...hit.source.marks, ...it.source.marks.map((m) => ({ ...m, start: m.start + hit.source.text.length, end: m.end + hit.source.text.length }))];
+      continue;
+    }
+    out.push({ ...it });
+  }
+  return out;
+}
+
+function sortItems(a, b) {
+  if (a.due && b.due) return a.due.localeCompare(b.due);
+  if (a.due) return -1;
+  if (b.due) return 1;
+  return b.confidence - a.confidence;
+}
+
+  exports.splitBlocks = splitBlocks;
+  exports.splitClauses = splitClauses;
+  exports.stripListMarker = stripListMarker;
+  exports.extract = extract;
+  exports.mergeItems = mergeItems;
+};
+__defs["model.js"] = function (module, exports, __req) {
+// src/model.js —— 纯数据层（不碰 DOM / localStorage，方便单测）
+// 待办对象：
+// { id, title, due, dueEnd, dueText, precision, deadline, place, people[], notes,
+//   priority, category, done, createdAt, updatedAt, source }
+const { fromLocalInput, toLocalInput, daysBetween, similarity, uid } = __req('util.js');
+const { describeWhen, WEEKDAY_NAMES } = __req('time.js');
+
+const CATEGORIES = {
+  work: '工作', study: '学习', life: '生活', health: '健康',
+  money: '钱款', social: '人际', other: '其他',
+};
+const PRIORITIES = { high: '重要', normal: '普通', low: '不急' };
+const PRIORITY_WEIGHT = { high: 0, normal: 1, low: 2 };
+
+const GROUPS = [
+  { key: 'overdue', title: '已逾期' },
+  { key: 'today', title: '今天' },
+  { key: 'tomorrow', title: '明天' },
+  { key: 'week', title: '本周内' },
+  { key: 'later', title: '以后' },
+  { key: 'someday', title: '没有时间' },
+  { key: 'done', title: '已完成' },
+];
+
+/** 把抽取结果或用户手填内容整理成规范待办 */
+function makeTodo(input = {}) {
+  const now = new Date();
+  const priority = PRIORITIES[input.priority] ? input.priority : 'normal';
+  const category = CATEGORIES[input.category] ? input.category : 'other';
+  return {
+    id: input.id || uid(),
+    title: String(input.title || '').trim() || '（未命名）',
+    due: input.due || null,
+    dueEnd: input.dueEnd || null,
+    dueText: input.dueText || '',
+    precision: input.precision || (input.due ? 'minute' : 'none'),
+    deadline: !!input.deadline,
+    place: input.place || '',
+    people: Array.isArray(input.people) ? input.people.slice(0, 8) : [],
+    notes: input.notes || '',
+    priority,
+    category,
+    done: !!input.done,
+    createdAt: input.createdAt || now.toISOString(),
+    updatedAt: input.updatedAt || now.toISOString(),
+    source: input.source && input.source.text ? { text: input.source.text, marks: input.source.marks || [] } : null,
+  };
+}
+
+function dueDate(todo) {
+  return todo && todo.due ? fromLocalInput(todo.due) : null;
+}
+
+function isOverdue(todo, now = new Date()) {
+  const d = dueDate(todo);
+  if (!d || todo.done) return false;
+  return d.getTime() < now.getTime();
+}
+
+function dueLabel(todo, now = new Date()) {
+  const d = dueDate(todo);
+  if (!d) return '没有时间';
+  return describeWhen(d, { now, precision: todo.precision || 'minute', overdue: !todo.done });
+}
+
+/** 分组：[{key,title,items,count}] */
+function groupTodos(todos, now = new Date(), opts = {}) {
+  const buckets = new Map(GROUPS.map((g) => [g.key, []]));
+  for (const t of todos) {
+    if (t.done) { buckets.get('done').push(t); continue; }
+    const d = dueDate(t);
+    if (!d) { buckets.get('someday').push(t); continue; }
+    const diff = daysBetween(now, d);
+    if (diff < 0) buckets.get('overdue').push(t);
+    else if (diff === 0) buckets.get('today').push(t);
+    else if (diff === 1) buckets.get('tomorrow').push(t);
+    else if (diff <= 6) buckets.get('week').push(t);
+    else buckets.get('later').push(t);
+  }
+  const out = [];
+  for (const g of GROUPS) {
+    const items = buckets.get(g.key);
+    if (!items.length) continue;
+    if (g.key === 'done' && opts.hideDone) continue;
+    items.sort((a, b) => {
+      const da = dueDate(a), db = dueDate(b);
+      if (da && db && da.getTime() !== db.getTime()) return da - db;
+      if (da && !db) return -1;
+      if (!da && db) return 1;
+      const pa = PRIORITY_WEIGHT[a.priority] ?? 1, pb = PRIORITY_WEIGHT[b.priority] ?? 1;
+      if (pa !== pb) return pa - pb;
+      return String(b.createdAt).localeCompare(String(a.createdAt));
+    });
+    out.push({ ...g, items, count: items.length });
+  }
+  return out;
+}
+
+function filterTodos(todos, opts = {}) {
+  const q = String(opts.q || '').trim().toLowerCase();
+  const cat = opts.cat || 'all';
+  return todos.filter((t) => {
+    if (opts.hideDone && t.done) return false;
+    if (cat !== 'all' && t.category !== cat) return false;
+    if (!q) return true;
+    const hay = [t.title, t.place, t.notes, t.dueText, ...(t.people || [])].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+}
+
+function statsTodos(todos, now = new Date()) {
+  let today = 0, overdue = 0, done = 0, week = 0;
+  for (const t of todos) {
+    if (t.done) { done++; continue; }
+    const d = dueDate(t);
+    if (!d) continue;
+    const diff = daysBetween(now, d);
+    if (diff < 0) overdue++;
+    else if (diff === 0) today++;
+    if (diff >= 0 && diff <= 6) week++;
+  }
+  return { total: todos.length, today, overdue, week, done, open: todos.length - done };
+}
+
+/** 去重：标题很像、时间一致 -> 视为同一条 */
+function dedupeTodos(todos) {
+  const out = [];
+  for (const t of todos) {
+    const hit = out.find((o) => (o.due || '') === (t.due || '') && similarity(o.title, t.title) >= 0.72);
+    if (!hit) out.push(t);
+    else {
+      hit.notes = [hit.notes, t.notes].filter(Boolean).join('；');
+      hit.people = [...new Set([...(hit.people || []), ...(t.people || [])])];
+    }
+  }
+  return out;
+}
+
+/* ────────────── 导出 ────────────── */
+
+const CAT_KEYS = Object.keys(CATEGORIES);
+
+function toMarkdown(todos, now = new Date()) {
+  const groups = groupTodos(todos, now);
+  const lines = [`# 待办清单`, '', `> 由抽丝生成 · ${fmtDate(now)} · 共 ${todos.length} 条`, ''];
+  for (const g of groups) {
+    lines.push(`## ${g.title}（${g.count}）`, '');
+    for (const t of g.items) {
+      const box = t.done ? 'x' : ' ';
+      const bits = [];
+      if (t.due) bits.push(`🕒 ${dueLabel(t, now)}${t.dueText && t.dueText !== t.title ? `（${t.dueText}）` : ''}`);
+      if (t.place) bits.push(`📍 ${t.place}`);
+      if (t.people && t.people.length) bits.push(`👤 ${t.people.join('、')}`);
+      if (t.priority === 'high') bits.push('❗重要');
+      lines.push(`- [${box}] **${t.title}**${bits.length ? ' — ' + bits.join(' · ') : ''}`);
+      if (t.notes) lines.push(`  - ${t.notes.replace(/\n/g, ' ')}`);
+    }
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+function toPlainText(todos, now = new Date()) {
+  const groups = groupTodos(todos, now);
+  const lines = [];
+  for (const g of groups) {
+    lines.push(`【${g.title}】`);
+    for (const t of g.items) {
+      lines.push(`${t.done ? '[x]' : '[ ]'} ${t.title}${t.due ? '  ⏰' + dueLabel(t, now) : ''}${t.place ? '  📍' + t.place : ''}`);
+      if (t.notes) lines.push(`      ${t.notes.replace(/\n/g, ' ')}`);
+    }
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+function icsEscape(s) {
+  return String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+
+function icsFold(line) {
+  // RFC5545: 75 octets 折行
+  const out = [];
+  let cur = '';
+  let bytes = 0;
+  for (const ch of line) {
+    const b = new TextEncoder().encode(ch).length;
+    if (bytes + b > 73) { out.push(cur); cur = ' '; bytes = 1; }
+    cur += ch;
+    bytes += b;
+  }
+  out.push(cur);
+  return out.join('\r\n');
+}
+
+function icsStamp(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`;
+}
+
+function icsDate(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+}
+
+function toICS(todos, now = new Date()) {
+  const stamp = icsStamp(now);
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//chousi//long-text-to-todo//CN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:抽丝待办',
+  ];
+  for (const t of todos) {
+    const d = dueDate(t);
+    if (!d) continue;
+    const isDateOnly = t.precision === 'day' || t.precision === 'month' || t.precision === 'year';
+    lines.push('BEGIN:VEVENT');
+    lines.push(`UID:${t.id}@chousi`);
+    lines.push(`DTSTAMP:${stamp}`);
+    if (isDateOnly) {
+      lines.push(`DTSTART;VALUE=DATE:${icsDate(d)}`);
+    } else {
+      lines.push(`DTSTART:${icsStamp(d)}`);
+      const e = t.dueEnd ? fromLocalInput(t.dueEnd) : null;
+      const end = e || new Date(d.getTime() + 30 * 60000);
+      lines.push(`DTEND:${icsStamp(end)}`);
+    }
+    const cat = CATEGORIES[t.category] || '其他';
+    lines.push(icsFold(`SUMMARY:${icsEscape((t.done ? '✔ ' : '') + t.title)}`));
+    if (t.place) lines.push(icsFold(`LOCATION:${icsEscape(t.place)}`));
+    const desc = [
+      t.deadline ? '【截止时间】' : '',
+      t.notes || '',
+      t.people && t.people.length ? `相关人：${t.people.join('、')}` : '',
+      `分类：${cat}`,
+    ].filter(Boolean).join('\n');
+    if (desc) lines.push(icsFold(`DESCRIPTION:${icsEscape(desc)}`));
+    lines.push(`CATEGORIES:${icsEscape(cat)}`);
+    if (t.priority === 'high') lines.push('PRIORITY:1');
+    lines.push('STATUS:CONFIRMED');
+    if (!isDateOnly) {
+      lines.push('BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', icsFold(`DESCRIPTION:${icsEscape(t.title)}`), 'END:VALARM');
+    }
+    lines.push('END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+function fmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function fmtDueFull(todo, now = new Date()) {
+  const d = dueDate(todo);
+  if (!d) return '';
+  const wd = WEEKDAY_NAMES[d.getDay()];
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const dayPart = `${d.getMonth() + 1}月${d.getDate()}日 周${wd}`;
+  if (todo.precision === 'day') return `${dayPart}（全天）`;
+  if (todo.precision === 'month') return `${d.getFullYear()}年${d.getMonth() + 1}月`;
+  return `${dayPart} ${hm}`;
+}
+
+
+
+  exports.makeTodo = makeTodo;
+  exports.dueDate = dueDate;
+  exports.isOverdue = isOverdue;
+  exports.dueLabel = dueLabel;
+  exports.groupTodos = groupTodos;
+  exports.filterTodos = filterTodos;
+  exports.statsTodos = statsTodos;
+  exports.dedupeTodos = dedupeTodos;
+  exports.toMarkdown = toMarkdown;
+  exports.toPlainText = toPlainText;
+  exports.toICS = toICS;
+  exports.fmtDate = fmtDate;
+  exports.fmtDueFull = fmtDueFull;
+  exports.CATEGORIES = CATEGORIES;
+  exports.PRIORITIES = PRIORITIES;
+  exports.PRIORITY_WEIGHT = PRIORITY_WEIGHT;
+  exports.GROUPS = GROUPS;
+  exports.toLocalInput = toLocalInput;
+};
+__defs["store.js"] = function (module, exports, __req) {
+// src/store.js —— 本地持久化（localStorage），全部带 try/catch，坏数据不会让应用白屏
+const { makeTodo } = __req('model.js');
+
+const K_STATE = 'chousi.state.v1';
+const K_AI = 'chousi.ai.v1';
+
+const DEFAULT_PREFS = {
+  theme: 'system',      // system | light | dark
+  engine: 'rules',      // rules | ai
+  hideDone: false,
+  cat: 'all',
+  lastInput: '',
+};
+
+function readJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const v = JSON.parse(raw);
+    return v && typeof v === 'object' ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function loadState() {
+  const raw = readJSON(K_STATE, {});
+  const todos = Array.isArray(raw.todos) ? raw.todos.filter((t) => t && t.title).map((t) => makeTodo(t)) : [];
+  const prefs = { ...DEFAULT_PREFS, ...(raw.prefs || {}) };
+  return { todos, prefs };
+}
+
+function saveState(state) {
+  return writeJSON(K_STATE, {
+    v: 1,
+    todos: state.todos || [],
+    prefs: state.prefs || DEFAULT_PREFS,
+    savedAt: new Date().toISOString(),
+  });
+}
+
+function clearState() {
+  try { localStorage.removeItem(K_STATE); } catch { /* ignore */ }
+}
+
+/* ── AI 配置 ── */
+
+function loadAI() {
+  const raw = readJSON(K_AI, {});
+  return {
+    provider: raw.provider || 'deepseek',
+    base: raw.base || '',
+    model: raw.model || '',
+    key: raw.key || '',
+    remember: !!raw.key,
+  };
+}
+
+function saveAI(cfg) {
+  if (cfg.remember && cfg.key) {
+    writeJSON(K_AI, { provider: cfg.provider, base: cfg.base, model: cfg.model, key: cfg.key });
+  } else {
+    try { localStorage.removeItem(K_AI); } catch { /* ignore */ }
+  }
+}
+
+function exportBackup(state) {
+  return JSON.stringify({ v: 1, exportedAt: new Date().toISOString(), todos: state.todos, prefs: state.prefs }, null, 2);
+}
+
+function importBackup(json) {
+  const v = typeof json === 'string' ? JSON.parse(json) : json;
+  const todos = Array.isArray(v.todos) ? v.todos.filter((t) => t && t.title).map((t) => makeTodo(t)) : [];
+  return { todos };
+}
+
+  exports.loadState = loadState;
+  exports.saveState = saveState;
+  exports.clearState = clearState;
+  exports.loadAI = loadAI;
+  exports.saveAI = saveAI;
+  exports.exportBackup = exportBackup;
+  exports.importBackup = importBackup;
+  exports.DEFAULT_PREFS = DEFAULT_PREFS;
+};
+__defs["llm.js"] = function (module, exports, __req) {
+// src/llm.js —— 可选的大模型增强（OpenAI 兼容接口）
+//
+// 设计原则：
+//   1) 默认不联网。只有用户自己打开 AI 模式、自己填 Key 才会调用。
+//   2) 完全兼容 OpenAI /chat/completions 协议，DeepSeek / Moonshot 等都能直接用。
+//   3) 任何失败都抛错，由调用方决定是否回落到规则引擎。
+//   4) 浏览器直连第三方接口可能被 CORS 拦住 —— 仓库自带 tools/llm-proxy.mjs 兜底。
+const { toLocalInput } = __req('util.js');
+
+const PROVIDERS = {
+  deepseek: { label: 'DeepSeek', base: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  openai: { label: 'OpenAI', base: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  moonshot: { label: 'Moonshot', base: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  custom: { label: '自定义', base: '', model: '' },
+};
+
+const SYSTEM_PROMPT = `你是一个待办抽取引擎。用户会给你一段中文长文本（通知、群聊、邮件、会议纪要等）。
+你要从中抽出所有「需要有人去做的事」，输出 JSON。
+
+严格要求：
+1. 只输出 JSON，不要 markdown 代码块，不要解释。
+2. 顶层是 {"items": [...]}，每个 item 的字段：
+   - title: 待办标题，动宾结构，不超过 30 字，不要包含时间和地点
+   - due: 本地时间 "YYYY-MM-DDTHH:mm"；只有日期就写 "YYYY-MM-DD"；实在没有给 null
+   - dueText: 原文里的时间表述原文，如 "本周五上午10点前"；没有给 ""
+   - deadline: 布尔，"之前/截止/前"这类硬期限填 true
+   - precision: "minute" | "day" | "month" | "none"
+   - place: 地点或线上会议方式；没有给 ""
+   - people: 相关人姓名的字符串数组
+   - notes: 备注，写要带的东西、要求、风险、费用等，用 "；" 分隔
+   - priority: "high" | "normal" | "low"
+   - category: "work" | "study" | "life" | "health" | "money" | "social" | "other"
+3. 一句话里有多件事就拆成多个 item；重复描述同一件事要合并。
+4. 相对时间必须换算成绝对日期，依据下面给出的「当前时间」。
+5. 不要把纯背景信息、寒暄、落款当待办。
+6. 没有时间也要抽取，due 给 null。`;
+
+function buildUserPrompt(text, now) {
+  const wd = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()];
+  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} 周${wd}`;
+  return `当前时间：${stamp}\n\n待抽取文本：\n"""\n${text}\n"""`;
+}
+
+function endpoint(base) {
+  const b = String(base || '').trim().replace(/\/+$/, '');
+  if (!b) throw new Error('还没有填写接口地址');
+  if (/\/chat\/completions$/.test(b)) return b;
+  return `${b}/chat/completions`;
+}
+
+function pickJSON(raw) {
+  let s = String(raw || '').trim();
+  s = s.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  const start = s.indexOf('{');
+  const end = s.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) throw new Error('模型没有返回 JSON');
+  return JSON.parse(s.slice(start, end + 1));
+}
+
+function normDate(v) {
+  if (!v) return { due: null, precision: 'none' };
+  const m = String(v).match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2}))?/);
+  if (!m) return { due: null, precision: 'none' };
+  const d = new Date(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0);
+  if (Number.isNaN(d.getTime())) return { due: null, precision: 'none' };
+  return { due: toLocalInput(d), precision: m[4] ? 'minute' : 'day' };
+}
+
+function normalizeAIItems(payload) {
+  const arr = Array.isArray(payload) ? payload : (payload && payload.items) || [];
+  return arr.map((it) => {
+    const { due, precision } = normDate(it.due);
+    const title = String(it.title || '').trim();
+    if (!title) return null;
+    const ppl = Array.isArray(it.people)
+      ? it.people.map((x) => String(x).trim()).filter(Boolean).slice(0, 8)
+      : String(it.people || '').split(/[,，、;；\s]+/).filter(Boolean).slice(0, 8);
+    return {
+      title,
+      due,
+      dueEnd: null,
+      dueText: String(it.dueText || '').trim(),
+      deadline: !!it.deadline,
+      precision: it.precision && ['minute', 'day', 'month', 'none'].includes(it.precision) ? it.precision : precision,
+      place: String(it.place || '').trim(),
+      people: ppl,
+      notes: String(it.notes || '').trim(),
+      priority: ['high', 'normal', 'low'].includes(it.priority) ? it.priority : 'normal',
+      category: ['work', 'study', 'life', 'health', 'money', 'social', 'other'].includes(it.category) ? it.category : 'other',
+      confidence: 0.9,
+      weak: false,
+      source: { text: '', marks: [] },
+    };
+  }).filter(Boolean);
+}
+
+/** 调用大模型抽取。失败抛 Error（消息可直接展示给用户） */
+async function extractWithAI(text, cfg, opts = {}) {
+  const base = cfg.base || (PROVIDERS[cfg.provider] || {}).base;
+  const model = cfg.model || (PROVIDERS[cfg.provider] || {}).model;
+  if (!cfg.key) throw new Error('还没有填写 API Key');
+  if (!model) throw new Error('还没有填写模型名');
+
+  const url = endpoint(base);
+  const now = opts.now instanceof Date ? opts.now : new Date();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs || 45000);
+  if (opts.signal) opts.signal.addEventListener('abort', () => controller.abort(), { once: true });
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${cfg.key}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.1,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: buildUserPrompt(text, now) },
+        ],
+        response_format: { type: 'json_object' },
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err && err.name === 'AbortError') throw new Error('请求超时（45 秒）。文本太长可以分段试试。');
+    throw new Error(`连不上接口：${err.message}。\n如果是浏览器 CORS 限制，先运行 npm run proxy 再把接口地址改成 http://127.0.0.1:8787/v1`);
+  }
+  clearTimeout(timer);
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`接口返回 ${res.status}：${body.slice(0, 200) || res.statusText}`);
+  }
+  const data = await res.json();
+  const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!content) throw new Error('接口没有返回内容');
+  const items = normalizeAIItems(pickJSON(content));
+  if (!items.length) throw new Error('模型没有抽到待办');
+  return items;
+}
+
+async function testAI(cfg) {
+  const items = await extractWithAI('明天下午3点在会议室开个会，记得带电脑。', cfg, { timeoutMs: 30000 });
+  return items[0];
+}
+
+  exports.normalizeAIItems = normalizeAIItems;
+  exports.extractWithAI = extractWithAI;
+  exports.testAI = testAI;
+  exports.PROVIDERS = PROVIDERS;
+};
+__defs["app.js"] = function (module, exports, __req) {
+// src/app.js —— 界面接线：粘贴 → 抽取 → 编辑 → 待办 → 导出
+const { extract } = __req('extract.js');
+const { uid, escapeHtml, clamp } = __req('util.js');
+const { makeTodo, groupTodos, filterTodos, dueLabel, toMarkdown, toICS, toPlainText, CATEGORIES } = __req('model.js');
+const { loadState, saveState, loadAI, saveAI, exportBackup } = __req('store.js');
+const { extractWithAI, testAI, PROVIDERS } = __req('llm.js');
+
+/** 改成你自己的仓库地址即可 */
+const REPO_URL = 'https://github.com/embers1117/chousi';
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+const SAMPLE = `【部门通知】各位同事：下周三下午3点在三楼大会议室召开第二季度工作总结会，请各部门负责人提前准备汇报材料，务必准时参加。
+
+另外，请于本周五上午10点前把本部门上季度的报销单据交到行政部小张处，逾期不再受理。
+
+还有，明天中午12点半公司食堂有团建聚餐，记得带工牌。
+
+最后提醒一下，6月30日前完成年度体检预约，体检地点是市第一人民医院体检中心，联系李医生（电话13800138000）。`;
+
+const state = {
+  todos: [],
+  drafts: [],
+  picked: new Set(),
+  prefs: {},
+  ai: {},
+  tab: 'drafts',
+  busy: false,
+};
+
+let persistTimer = null;
+function persist() {
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => saveState(state), 350);
+}
+
+/* ───────────────── 主题 ───────────────── */
+
+function resolvedTheme() {
+  if (state.prefs.theme === 'light' || state.prefs.theme === 'dark') return state.prefs.theme;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme() {
+  document.documentElement.dataset.theme = resolvedTheme();
+}
+
+/* ───────────────── 卡片 ───────────────── */
+
+function findItem(card) {
+  const id = card?.dataset.id;
+  if (!id) return null;
+  const pool = card.dataset.mode === 'draft' ? state.drafts : state.todos;
+  return pool.find((x) => x.id === id) || null;
+}
+
+function renderSource(item) {
+  const src = item && item.source;
+  if (!src || !src.text) return '<em class="src-empty">这条是手动添加的，没有原文出处。</em>';
+  const marks = (src.marks || []).slice().sort((a, b) => a.start - b.start);
+  let out = '';
+  let pos = 0;
+  for (const m of marks) {
+    const s = clamp(m.start, pos, src.text.length);
+    const e = clamp(m.end, s, src.text.length);
+    if (e <= s) continue;
+    out += escapeHtml(src.text.slice(pos, s));
+    out += `<mark>${escapeHtml(src.text.slice(s, e))}</mark>`;
+    pos = e;
+  }
+  out += escapeHtml(src.text.slice(pos));
+  return out;
+}
+
+function dueChipText(item) {
+  if (item.due) return (item.deadline ? '截止 ' : '') + dueLabel(item);
+  if (item.dueText) return '待定 · ' + item.dueText;
+  return '没有时间';
+}
+
+function fillCard(node, item, mode) {
+  node.dataset.mode = mode;
+  node.dataset.id = item.id;
+  node.classList.toggle('is-done', !!item.done);
+  node.classList.toggle('is-picked', state.picked.has(item.id));
+  node.classList.remove('priority-high', 'priority-normal', 'priority-low');
+  node.classList.add('priority-' + (item.priority || 'normal'));
+
+  const title = $('.card-title', node);
+  title.value = item.title || '';
+  title.title = item.title || '';
+
+  $('[data-field="dueText"]', node).value = item.dueText || '';
+  $('[data-field="due"]', node).value = item.due || '';
+  $('[data-field="deadline"]', node).checked = !!item.deadline;
+  $('[data-field="place"]', node).value = item.place || '';
+  $('[data-field="people"]', node).value = (item.people || []).join('、');
+  $('[data-field="notes"]', node).value = item.notes || '';
+  $('[data-field="category"]', node).value = item.category || 'other';
+  $('[data-field="priority"]', node).value = item.priority || 'normal';
+
+  const conf = $('[data-act="conf"]', node);
+  const c = typeof item.confidence === 'number' ? item.confidence : 0.9;
+  conf.textContent = Math.round(c * 100) + '%';
+  conf.classList.remove('conf-high', 'conf-mid', 'conf-low');
+  conf.classList.add(c >= 0.8 ? 'conf-high' : c >= 0.55 ? 'conf-mid' : 'conf-low');
+
+  const chip = $('[data-act="duelabel"]', node);
+  chip.textContent = dueChipText(item);
+  chip.classList.toggle('badge-warn', !!item.due && new Date(item.due) < new Date() && !item.done);
+
+  const pick = $('[data-act="pick"]', node);
+  if (pick) pick.checked = state.picked.has(item.id);
+
+  const done = $('[data-act="done"]', node);
+  if (done) done.checked = !!item.done;
+
+  const src = $('.card-source', node);
+  src.setAttribute('hidden', '');
+  src.innerHTML = '';
+
+  return node;
+}
+
+function cardFor(item, mode) {
+  const tpl = $('#tpl-card');
+  const node = tpl.content.firstElementChild.cloneNode(true);
+  return fillCard(node, item, mode);
+}
+
+function refreshChip(card, item) {
+  const chip = $('[data-act="duelabel"]', card);
+  if (chip) chip.textContent = dueChipText(item);
+}
+
+/* ───────────────── 渲染 ───────────────── */
+
+function renderHeader() {
+  $('#count-drafts').textContent = state.drafts.length;
+  const open = state.todos.filter((t) => !t.done).length;
+  $('#count-todos').textContent = open;
+  $('#counter').textContent = `${$('#input').value.length} 字`;
+  $('#engine-hint').textContent = state.prefs.engine === 'ai'
+    ? (state.ai.key ? 'AI 增强 · 已配置' : 'AI 增强 · 未配置 Key')
+    : '规则引擎 · 本地运行';
+  $$('#engine-seg .seg-item').forEach((b) => b.classList.toggle('is-on', b.dataset.engine === state.prefs.engine));
+  $$('#tabs .tab').forEach((b) => b.classList.toggle('is-on', b.dataset.tab === state.tab));
+  $('#view-drafts').hidden = state.tab !== 'drafts';
+  $('#view-todos').hidden = state.tab !== 'todos';
+  $('#bulkbar').hidden = state.drafts.length === 0;
+  $('#bulk-count').textContent = state.picked.size
+    ? `已选 ${state.picked.size} 条`
+    : `共 ${state.drafts.length} 条，未选择`;
+  $('#btn-add-all').textContent = state.picked.size ? `加入选中的 ${state.picked.size} 条` : '全部加入待办';
+  const all = state.drafts.length > 0 && state.picked.size === state.drafts.length;
+  $('#chk-all').checked = all;
+  $('#lnk-gh').href = REPO_URL;
+}
+
+function renderDrafts() {
+  const list = $('#list-drafts');
+  list.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const d of state.drafts) frag.appendChild(cardFor(d, 'draft'));
+  list.appendChild(frag);
+  $('#empty-drafts').hidden = state.drafts.length > 0;
+}
+
+function renderTodos() {
+  const list = $('#list-todos');
+  list.innerHTML = '';
+  const q = $('#search').value;
+  const filtered = filterTodos(state.todos, { q, cat: state.prefs.cat, hideDone: state.prefs.hideDone });
+  const groups = groupTodos(filtered);
+  const frag = document.createDocumentFragment();
+  for (const g of groups) {
+    const head = document.createElement('div');
+    head.className = 'group-head';
+    head.innerHTML = `<span>${escapeHtml(g.title)}</span><span class="count">${g.count}</span>`;
+    frag.appendChild(head);
+    for (const t of g.items) frag.appendChild(cardFor(t, 'saved'));
+  }
+  list.appendChild(frag);
+  $('#empty-todos').hidden = filtered.length > 0;
+
+  // 分类筛选条
+  const chips = $('#filter-cats');
+  const counts = {};
+  for (const t of state.todos) if (!t.done) counts[t.category] = (counts[t.category] || 0) + 1;
+  const cats = [['all', '全部', state.todos.filter((t) => !t.done).length]]
+    .concat(Object.entries(CATEGORIES).filter(([k]) => counts[k]).map(([k, label]) => [k, label, counts[k]]));
+  chips.innerHTML = cats.map(([k, label, n]) =>
+    `<button class="chip${state.prefs.cat === k ? ' is-on' : ''}" data-cat="${k}">${label} ${n}</button>`).join('');
+}
+
+function renderAll() {
+  renderHeader();
+  renderDrafts();
+  renderTodos();
+}
+
+function toast(msg, kind) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.toggle('toast-error', kind === 'error');
+  el.hidden = false;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.hidden = true; }, kind === 'error' ? 5200 : 2400);
+}
+
+/* ───────────────── 抽取 ───────────────── */
+
+function setBusy(on) {
+  state.busy = on;
+  const btn = $('#btn-extract');
+  btn.disabled = on;
+  $('.btn-label', btn).textContent = on ? '抽取中…' : '抽 取';
+}
+
+async function runExtract() {
+  if (state.busy) return;
+  const text = $('#input').value;
+  if (!text.trim()) { toast('先粘一段文字进来'); $('#input').focus(); return; }
+
+  setBusy(true);
+  try {
+    let items;
+    if (state.prefs.engine === 'ai') {
+      try {
+        items = await extractWithAI(text, state.ai);
+      } catch (err) {
+        toast('AI 抽取失败，已用规则引擎兜底：' + String(err.message || err).split('\n')[0], 'error');
+        items = extract(text).items;
+      }
+    } else {
+      items = extract(text).items;
+    }
+
+    if (!items.length) {
+      toast('没抽出待办，试试补上「时间 + 要做什么」');
+      return;
+    }
+    state.drafts = items.map((it) => ({ ...it, id: uid('dr') }));
+    state.picked = new Set();
+    state.tab = 'drafts';
+    renderAll();
+    toast(`抽出 ${items.length} 条待办`);
+  } catch (err) {
+    console.error(err);
+    toast('抽取出错：' + (err.message || err), 'error');
+  } finally {
+    setBusy(false);
+    persist();
+  }
+}
+
+/* ───────────────── 待办操作 ───────────────── */
+
+function addDrafts(list) {
+  if (!list.length) return;
+  for (const d of list) {
+    state.todos.unshift(makeTodo({ ...d, done: false, createdAt: new Date().toISOString() }));
+  }
+  const ids = new Set(list.map((d) => d.id));
+  state.drafts = state.drafts.filter((d) => !ids.has(d.id));
+  for (const id of ids) state.picked.delete(id);
+  renderAll();
+  persist();
+  toast(`已加入 ${list.length} 条待办`);
+}
+
+function addAll() {
+  const list = state.picked.size ? state.drafts.filter((d) => state.picked.has(d.id)) : state.drafts.slice();
+  addDrafts(list);
+}
+
+function download(filename, content, mime) {
+  const blob = new Blob([content], { type: mime || 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+async function copyText(s) {
+  try {
+    await navigator.clipboard.writeText(s);
+    return true;
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = s;
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    ta.remove();
+    return ok;
+  }
+}
+
+/* ───────────────── 事件 ───────────────── */
+
+function onFieldInput(e) {
+  const el = e.target;
+  const field = el.dataset.field;
+  if (!field) return;
+  const card = el.closest('.card');
+  const item = findItem(card);
+  if (!item) return;
+
+  if (field === 'people') item.people = el.value.split(/[,，、;；\s]+/).filter(Boolean);
+  else if (field === 'notes') item.notes = el.value;
+  else item[field] = el.value;
+
+  if (field === 'title') {
+    el.title = el.value;
+    card.classList.toggle('is-done', !!item.done);
+  }
+  if (field === 'dueText' || field === 'due') refreshChip(card, item);
+  item.updatedAt = new Date().toISOString();
+  persist();
+}
+
+function onFieldChange(e) {
+  const el = e.target;
+  const field = el.dataset.field;
+  const card = el.closest('.card');
+  const item = card ? findItem(card) : null;
+
+  if (field && item) {
+    if (field === 'due') {
+      item.due = el.value || null;
+      if (item.due) {
+        const hasTime = !/T00:00$/.test(item.due);
+        item.precision = hasTime ? 'minute' : 'day';
+      } else {
+        item.precision = 'none';
+      }
+      refreshChip(card, item);
+      if (card.dataset.mode === 'saved') renderTodos();
+    } else if (field === 'deadline') {
+      item.deadline = el.checked;
+      refreshChip(card, item);
+    } else if (field === 'priority' || field === 'category') {
+      item[field] = el.value;
+      if (field === 'priority') {
+        card.classList.remove('priority-high', 'priority-normal', 'priority-low');
+        card.classList.add('priority-' + item.priority);
+      }
+      if (card.dataset.mode === 'saved') renderTodos();
+    } else if (field === 'people') {
+      item.people = el.value.split(/[,，、;；\s]+/).filter(Boolean);
+    }
+    item.updatedAt = new Date().toISOString();
+    persist();
+    return;
+  }
+
+  const act = el.dataset.act;
+  if (!act) return;
+  const it = card ? findItem(card) : null;
+  if (!it) return;
+
+  if (act === 'pick') {
+    if (el.checked) state.picked.add(it.id); else state.picked.delete(it.id);
+    card.classList.toggle('is-picked', el.checked);
+    renderHeader();
+  } else if (act === 'done') {
+    it.done = el.checked;
+    card.classList.toggle('is-done', it.done);
+    setTimeout(renderTodos, 120);
+    persist();
+  }
+}
+
+function onClick(e) {
+  const btn = e.target.closest('[data-act]');
+  if (btn) {
+    const act = btn.dataset.act;
+    const card = btn.closest('.card');
+    const item = card ? findItem(card) : null;
+
+    if (act === 'save' && item) { addDrafts([item]); return; }
+    if (act === 'del' && item) {
+      if (card.dataset.mode === 'draft') {
+        state.drafts = state.drafts.filter((d) => d.id !== item.id);
+        state.picked.delete(item.id);
+      } else {
+        state.todos = state.todos.filter((t) => t.id !== item.id);
+      }
+      renderAll();
+      persist();
+      toast('已删除');
+      return;
+    }
+    if (act === 'source' && card) {
+      const box = $('.card-source', card);
+      if (box.hidden) {
+        box.innerHTML = renderSource(item);
+        box.removeAttribute('hidden');
+      } else {
+        box.setAttribute('hidden', '');
+      }
+      return;
+    }
+    if (act === 'conf') {
+      toast('置信度：抽取时各字段把握的综合值，可手动修改内容');
+      return;
+    }
+    if (act === 'duelabel') {
+      const inp = card && $('[data-field="due"]', card);
+      if (inp) { inp.showPicker ? inp.showPicker() : inp.focus(); }
+      return;
+    }
+  }
+
+  const cat = e.target.closest('[data-cat]');
+  if (cat) {
+    state.prefs.cat = cat.dataset.cat;
+    renderTodos();
+    persist();
+    return;
+  }
+
+  const tab = e.target.closest('.tab');
+  if (tab) {
+    state.tab = tab.dataset.tab;
+    renderHeader();
+    return;
+  }
+
+  const eng = e.target.closest('#engine-seg .seg-item');
+  if (eng) {
+    selectEngine(eng.dataset.engine);
+    return;
+  }
+
+  const exp = e.target.closest('[data-export]');
+  if (exp) {
+    doExport(exp.dataset.export);
+    return;
+  }
+}
+
+function selectEngine(engine) {
+  if (engine === 'ai' && !state.ai.key) {
+    openAIDialog();
+    return;
+  }
+  state.prefs.engine = engine;
+  renderHeader();
+  persist();
+}
+
+function doExport(kind) {
+  const todos = state.todos;
+  if (!todos.length) { toast('还没有待办可以导出'); return; }
+  const stamp = new Date().toISOString().slice(0, 10);
+  if (kind === 'md') download(`抽丝待办-${stamp}.md`, toMarkdown(todos), 'text/markdown;charset=utf-8');
+  else if (kind === 'ics') download(`抽丝待办-${stamp}.ics`, toICS(todos), 'text/calendar;charset=utf-8');
+  else if (kind === 'txt') download(`抽丝待办-${stamp}.txt`, toPlainText(todos), 'text/plain;charset=utf-8');
+  else if (kind === 'json') download(`抽丝待办-${stamp}.json`, exportBackup(state), 'application/json;charset=utf-8');
+  else if (kind === 'import') { /* reserved */ }
+  const dlg = $('#dlg-export');
+  if (dlg.open) dlg.close();
+  toast('已导出');
+}
+
+/* ───────────────── AI 配置 ───────────────── */
+
+function fillAIDialog() {
+  const { provider, base, model, key, remember } = state.ai;
+  $('#ai-provider').value = provider || 'deepseek';
+  const p = PROVIDERS[provider] || PROVIDERS.deepseek;
+  $('#ai-base').value = base || p.base;
+  $('#ai-model').value = model || p.model;
+  $('#ai-key').value = key || '';
+  $('#ai-remember').checked = !!remember;
+  $('#ai-warn').hidden = true;
+}
+
+function openAIDialog() {
+  fillAIDialog();
+  const dlg = $('#dlg-ai');
+  if (typeof dlg.showModal === 'function') dlg.showModal();
+  else dlg.setAttribute('open', '');
+}
+
+function readAIDialog() {
+  return {
+    provider: $('#ai-provider').value,
+    base: $('#ai-base').value.trim(),
+    model: $('#ai-model').value.trim(),
+    key: $('#ai-key').value.trim(),
+    remember: $('#ai-remember').checked,
+  };
+}
+
+function warnAI(msg, ok) {
+  const el = $('#ai-warn');
+  el.hidden = false;
+  el.textContent = msg;
+  el.classList.toggle('is-ok', !!ok);
+}
+
+async function testAIConnection() {
+  const cfg = readAIDialog();
+  warnAI('正在测试…', true);
+  try {
+    const first = await testAI(cfg);
+    warnAI(`连通成功 ✅ 抽到「${first.title}」`, true);
+  } catch (err) {
+    warnAI('测试失败：' + String(err.message || err).split('\n')[0]);
+  }
+}
+
+/* ───────────────── 绑定 ───────────────── */
+
+function bind() {
+  $('#input').addEventListener('input', () => {
+    $('#counter').textContent = `${$('#input').value.length} 字`;
+    state.prefs.lastInput = $('#input').value;
+    persist();
+  });
+  $('#input').addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === '\n')) {
+      e.preventDefault();
+      runExtract();
+    }
+  });
+
+  $('#btn-extract').addEventListener('click', runExtract);
+  $('#btn-sample').addEventListener('click', () => {
+    $('#input').value = SAMPLE;
+    $('#counter').textContent = `${SAMPLE.length} 字`;
+    state.prefs.lastInput = SAMPLE;
+    persist();
+    $('#input').focus();
+  });
+  $('#btn-clear').addEventListener('click', () => {
+    $('#input').value = '';
+    $('#counter').textContent = '0 字';
+    state.prefs.lastInput = '';
+    persist();
+    $('#input').focus();
+  });
+
+  $('#btn-add-all').addEventListener('click', addAll);
+  $('#chk-all').addEventListener('change', (e) => {
+    state.picked = e.target.checked ? new Set(state.drafts.map((d) => d.id)) : new Set();
+    renderDrafts();
+    renderHeader();
+  });
+  $('#btn-copy-json').addEventListener('click', async () => {
+    const ok = await copyText(JSON.stringify(state.drafts.map(({ source, ...rest }) => rest), null, 2));
+    toast(ok ? '已复制 JSON' : '复制失败，请手动选择', ok ? undefined : 'error');
+  });
+
+  $('#search').addEventListener('input', () => {
+    clearTimeout($('#search')._t);
+    $('#search')._t = setTimeout(renderTodos, 120);
+  });
+  $('#btn-clear-done').addEventListener('click', () => {
+    const n = state.todos.filter((t) => t.done).length;
+    if (!n) { toast('没有已完成的任务'); return; }
+    state.todos = state.todos.filter((t) => !t.done);
+    renderAll();
+    persist();
+    toast(`已清理 ${n} 条`);
+  });
+
+  $('#btn-theme').addEventListener('click', () => {
+    const cur = resolvedTheme();
+    state.prefs.theme = cur === 'dark' ? 'light' : 'dark';
+    applyTheme();
+    persist();
+  });
+  $('#btn-export').addEventListener('click', () => {
+    const dlg = $('#dlg-export');
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+  });
+
+  $('#btn-ai').addEventListener('click', openAIDialog);
+  $('#ai-provider').addEventListener('change', (e) => {
+    const p = PROVIDERS[e.target.value];
+    if (p && p.base) {
+      $('#ai-base').value = p.base;
+      $('#ai-model').value = p.model;
+    }
+  });
+  $('#btn-ai-test').addEventListener('click', (e) => { e.preventDefault(); testAIConnection(); });
+  $('#btn-ai-save').addEventListener('click', (e) => {
+    e.preventDefault();
+    state.ai = readAIDialog();
+    saveAI(state.ai);
+    if (state.ai.key) state.prefs.engine = 'ai';
+    $('#dlg-ai').close();
+    renderHeader();
+    persist();
+    toast(state.ai.key ? '已保存，抽取引擎切到 AI' : '已清空 AI 配置');
+  });
+  $('#dlg-ai').addEventListener('close', () => {
+    if (!state.ai.key) $('#dlg-ai').querySelector('form').reset();
+    fillAIDialog();
+  });
+
+  document.addEventListener('click', onClick);
+  document.addEventListener('input', onFieldInput);
+  document.addEventListener('change', onFieldChange);
+
+  // 拖一个 .txt/.md 文件进来直接填充
+  const ta = $('#input');
+  ['dragover', 'drop'].forEach((ev) => {
+    ta.addEventListener(ev, (e) => {
+      e.preventDefault();
+      if (ev !== 'drop') return;
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        ta.value = String(reader.result || '');
+        $('#counter').textContent = `${ta.value.length} 字`;
+        toast('已读入文件，点「抽取」');
+      };
+      reader.readAsText(f, 'utf-8');
+    });
+  });
+
+  window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener?.('change', () => { if (state.prefs.theme === 'system') applyTheme(); });
+}
+
+/* ───────────────── 启动 ───────────────── */
+
+function init() {
+  const saved = loadState();
+  state.todos = saved.todos;
+  state.prefs = saved.prefs;
+  state.ai = loadAI();
+  applyTheme();
+
+  if (state.prefs.lastInput) {
+    $('#input').value = state.prefs.lastInput;
+    $('#counter').textContent = `${state.prefs.lastInput.length} 字`;
+  }
+  bind();
+  renderAll();
+
+  if (!state.todos.length && !state.drafts.length) {
+    setTimeout(() => toast('点「载入示例」试试'), 600);
+  }
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+
+// 便于调试 & 测试
+window.__chousi = { state, runExtract, addAll, extract };
+
+
+};
+  __req("app.js");
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 本项目零依赖，没有 npm install 这一步
+      - name: 语法检查
+        run: |
+          node --check src/app.js
+          node --check src/extract.js
+          node --check src/time.js
+          node --check src/model.js
+          node --check src/llm.js
+
+      - name: 单元测试
+        run: npm test
+
+      - name: 单文件打包
+        run: npm run build
+
+      - name: 上传打包产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: chousi-single-file
+          path: dist/chousi.html
+          if-no-files-found: error

@@ -1,0 +1,8 @@
+# 统一换行符，避免 Windows 提交后 CI 上的 shell 脚本报错
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

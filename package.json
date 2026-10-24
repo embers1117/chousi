@@ -1,0 +1,17 @@
+{
+  "name": "chousi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "抽丝 · 把一大段文字抽成结构化待办（时间 / 地点 / 人物 / 任务 / 备注）",
+  "keywords": ["todo", "extract", "nlp", "chinese", "notes", "productivity"],
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "dev": "node tools/serve.mjs",
+    "test": "node tools/run-tests.mjs",
+    "test:node": "node --test tests/",
+    "build": "node tools/bundle.mjs",
+    "proxy": "node tools/llm-proxy.mjs"
+  }
+}
