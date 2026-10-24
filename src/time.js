@@ -35,6 +35,8 @@ const REL_DAY = {
 const REL_DAY_DP = { 今早: '早上', 今晚: '晚上', 明早: '早上', 明晚: '晚上' };
 
 const PERIOD = {
+  下个月底: 'nextMonthEnd', 下月底: 'nextMonthEnd', 下月末: 'nextMonthEnd',
+  下月月初: 'nextMonthStart',
   本月: 'monthStart', 这个月: 'monthStart', 这月: 'monthStart', 当月: 'monthStart',
   下个月: 'nextMonthStart', 下月: 'nextMonthStart', 下月月初: 'nextMonthStart',
   上个月: 'prevMonthStart', 上月: 'prevMonthStart',
@@ -146,15 +148,16 @@ const PATTERNS = [
       return makeAbs(null, null, mo, da);
     },
   },
-  // 3日 / 15号（不带月份，当前月或下个月）
+  // 3日 / 15号 / 十五号（不带月份，当前月或下个月）
   {
-    re: /(\d{1,2})\s*([号日])(?![\d期])/g,
+    re: /(\d{1,2}|[一二三四五六七八九十]{1,3})\s*([号日])(?![\d期])/g,
     build: (m, text) => {
       const idx = m.index;
       const prev = idx > 0 ? text[idx - 1] : '';
       if (/[\d年]/.test(prev)) return null;
-      const d = +m[1];
-      if (d < 1 || d > 31) return null;
+      if (/月/.test(prev)) return null;                  // 「5月3日」交给上一条规则
+      const d = cnToInt(m[1]);
+      if (d == null || d < 1 || d > 31) return null;
       return { type: 'dayonly', d };
     },
   },
@@ -180,7 +183,7 @@ const PATTERNS = [
   },
   // 周期词
   {
-    re: /(下个月底|下月月初|这个月底|这个月末|本月末|下个月|上个月|本季度|下个季度|这个季度|下个星期|上个星期|这个星期|今年年底|今年底|明年底|今年年末|本月|这个月|这月|当月|下月|上月|月底|月末|月初|本月初|这星期|下星期|下周|本周|这周|上周|明年年底|今年|本年|明年|去年|年底|年末|年初|本年初|上旬|中旬|下旬|上半年|下半年|下季度)/g,
+    re: /(下个月底|下月底|下月末|下月月初|这个月底|这个月末|本月末|下个月|上个月|本季度|下个季度|这个季度|下个星期|上个星期|这个星期|今年年底|今年底|明年底|今年年末|本月|这个月|这月|当月|下月|上月|月底|月末|月初|本月初|这星期|下星期|下周|本周|这周|上周|明年年底|今年|本年|明年|去年|年底|年末|年初|本年初|上旬|中旬|下旬|上半年|下半年|下季度)/g,
     build: (m) => {
       const key = PERIOD[m[1]];
       if (!key) return null;
@@ -197,10 +200,23 @@ const PATTERNS = [
     re: /(\d{1,2})\s*[:：]\s*(\d{2})\s*[-–—~～至到]\s*(\d{1,2})\s*[:：]\s*(\d{2})/g,
     build: (m) => ({ type: 'range', a: { h: +m[1], mi: +m[2] }, b: { h: +m[3], mi: +m[4] } }),
   },
-  // 区间：9点到11点 / 9-11点
+  // 区间：8-10点 / 9~11点（第一个数后面没有「点」）
   {
-    re: /(\d{1,2}|[一二三四五六七八九十]{1,3})\s*点(?:半)?\s*[-–—~～至到]\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*点/g,
-    build: (m) => ({ type: 'range', a: { h: cnToInt(m[1]), mi: 0 }, b: { h: cnToInt(m[2]), mi: 0 } }),
+    re: /(\d{1,2}|[一二三四五六七八九十]{1,3})\s*[-–—~～至到]\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*点/g,
+    build: (m) => {
+      const a = cnToInt(m[1]), b = cnToInt(m[2]);
+      if (!a || !b || a > 24 || b > 24) return null;
+      return { type: 'range', a: { h: a, mi: 0 }, b: { h: b, mi: 0 } };
+    },
+  },
+  // 区间：9点到11点 / 8点半到10点半（两端的「半」都要带上）
+  {
+    re: /(\d{1,2}|[一二三四五六七八九十]{1,3})\s*点\s*(半)?\s*[-–—~～至到]\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*点\s*(半)?/g,
+    build: (m) => {
+      const a = cnToInt(m[1]), b = cnToInt(m[3]);
+      if (a == null || b == null || a > 24 || b > 24) return null;
+      return { type: 'range', a: { h: a, mi: m[2] ? 30 : 0 }, b: { h: b, mi: m[4] ? 30 : 0 } };
+    },
   },
   // 节日：国庆 / 五一 / 春节 / 中秋 …
   {
@@ -245,6 +261,21 @@ const PATTERNS = [
       return { type: 'durrel', n, unit, mode };
     },
   },
+  // 生活作息里的「时刻」：下班前 = 18:00 且是截止语义
+  {
+    re: /(下班之前|下班前|下班|上班之前|上班前|午休前|午休|放学后|放学|晚饭前|午饭前|早饭前)/g,
+    build: (m) => {
+      const MAP = {
+        下班之前: [18, 0], 下班前: [18, 0], 下班: [18, 0],
+        上班之前: [9, 0], 上班前: [9, 0],
+        午休前: [12, 0], 午休: [12, 0],
+        放学后: [17, 0], 放学: [17, 0],
+        晚饭前: [18, 0], 午饭前: [12, 0], 早饭前: [8, 0],
+      };
+      const [h, mi] = MAP[m[1]] || [18, 0];
+      return { type: 'clock', h, mi, deadlineHint: /前|之前/.test(m[1]) };
+    },
+  },
   // 时段词
   {
     re: /(凌晨|清晨|早晨|早上|上午|中午|午后|下午|傍晚|晚上|夜里|夜间|半夜)/g,
@@ -252,7 +283,7 @@ const PATTERNS = [
   },
   // 模糊词
   {
-    re: /(尽快|马上|立刻|立即|随时|方便的时候|有空|待定|之后再说|后续)/g,
+    re: /(尽快|马上|立刻|立即|随时|方便的时候|有空|待定|之后再说|后续|稍后|稍候|不久|待会儿|待会|一会儿|回头再说|看情况)/g,
     build: (m) => ({ type: 'vague', word: m[1] }),
   },
 ];
@@ -308,6 +339,7 @@ function absorb(span, tok) {
   else if (tok.type === 'clock') span.clock = { h: tok.h, mi: tok.mi };
   else if (tok.type === 'range') span.range = { a: tok.a, b: tok.b };
   else { span.date = tok; if (tok.dp && !span.dp) span.dp = tok.dp; }
+  if (tok.deadlineHint) span.isDeadline = true;
   span.end = tok.end;
   span.tokens.push(tok);
 }
@@ -325,7 +357,7 @@ function buildSpans(text, tokens) {
       range: t.type === 'range' ? { a: t.a, b: t.b } : null,
       durrel: t.type === 'durrel' ? t : null,
       vague: t.type === 'vague' ? t.word : null,
-      isDeadline: false,
+      isDeadline: !!t.deadlineHint,
     };
     let j = i + 1;
     while (j < tokens.length && !span.durrel && !span.vague) {

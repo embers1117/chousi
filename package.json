@@ -12,6 +12,7 @@
     "test": "node tools/run-tests.mjs",
     "test:node": "node --test tests/",
     "eval": "node tools/eval.mjs",
+    "probe": "node tools/probe.mjs",
     "build": "node tools/bundle.mjs",
     "proxy": "node tools/llm-proxy.mjs"
   }

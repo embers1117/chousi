@@ -150,7 +150,7 @@ type Todo = {
 |---|---|
 | 依赖 | 0 个（`node_modules` 不存在） |
 | 打包 | `tools/bundle.mjs`：按依赖顺序把 8 个 ESM 模块包进一个 IIFE，解决 `file://` 下 CORS 不给加载 module 的问题 |
-| 单测 | `node:test`，80 条：时间 34 / 分段回归 15 / 流水线 13 / 数据层 12 / 契约 6 |
+| 单测 | `node:test`，97 条：时间 47 / 分段回归 19 / 流水线 13 / 数据层 12 / 契约 6 |
 | 契约测试 | 校验 `app.js` 引用的每个 id、`data-field`、`data-act` 都在 `index.html` 里存在，关键 CSS 选择器都在 `styles.css` 里存在 |
 | CI | GitHub Actions：语法检查 → 单测 → 打包 → 上传单文件产物 |
 | 可访问性 | 所有可聚焦元素有 `:focus-visible` 焦点环；`prefers-reduced-motion` 降级；深浅色对比度 ≥ 7:1 |

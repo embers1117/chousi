@@ -109,6 +109,7 @@ const NAME_STOP = new Set([
   '客户', '甲方', '乙方', '财务', '行政', '人事', '采购', '后勤', '技术', '产品', '运营',
   '销售', '市场', '设计', '研发', '全体', '各位', '同学', '家长', '朋友们', '邀请',
   '提前', '一下', '这个', '那个', '今天', '后天', '各位', '部门', '负责人', '这边', '那边',
+  '所有人', '全员', '全体', '亲们', '朋友们', '各位同学', '每个人', '大家',
 ]);
 
 /** 名字里不该出现的「功能字」 */
@@ -174,9 +175,13 @@ export function findPeople(text, timeSpans = []) {
     if (isName(m[1])) people.add(m[1]);
   }
 
-  // @昵称
+  // @昵称（@所有人/@全体 是广播不是人）
   const reAt = /@([\w\u4e00-\u9fa5]{2,20})/g;
-  while ((m = reAt.exec(masked)) !== null) people.add(m[1]);
+  while ((m = reAt.exec(masked)) !== null) {
+    const n = m[1];
+    if (NAME_STOP.has(n) || /^(所有人|全体|全员|每个人|大家)/.test(n)) continue;
+    people.add(n);
+  }
 
   PHONE_RE.lastIndex = 0;
   while ((m = PHONE_RE.exec(masked)) !== null) phones.add(m[1]);

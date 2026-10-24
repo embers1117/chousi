@@ -128,3 +128,35 @@ test('整段通知：4 条，标题里不出现「地点」「结束」这类碎
     assert.ok(!items.some((i) => i.title === bad), `不该出现标题「${bad}」`);
   }
 });
+
+/* ── 下面几条来自 tools/probe.mjs 的真实短板 ── */
+
+test('表单式「面试时间：… 地点：… 联系人：…」→ 1 条，时间精确到分', () => {
+  const it = only('面试时间：2026-11-03 14:30，地点：公司B座3层，联系人：HR刘女士 13800138000');
+  assert.equal(it.title, '面试');
+  assert.equal(it.due, '2026-11-03T14:30');
+  assert.equal(it.place, '公司B座3层');
+  assert.match(it.notes, /13800138000/);
+});
+
+test('「XX地点 / XX时间」这类键也按属性处理', () => {
+  const it = only('培训地点：B座301，培训时间：下周三下午2点到4点');
+  assert.equal(it.title, '培训');
+  assert.equal(it.due, '2025-05-14T14:00');
+  assert.equal(it.dueEnd, '2025-05-14T16:00');
+  assert.equal(it.place, 'B座301');
+});
+
+test('@所有人 不算人物，也不进标题', () => {
+  const it = only('@所有人 明天上午10点在三楼开会，请准时参加');
+  assert.match(it.title, /开会/);
+  assert.equal(it.place, '三楼');
+  assert.deepEqual(it.people, []);
+});
+
+test('「本月20号前」是截止语义', () => {
+  const it = only('本月20号前把发票交到财务，记得写上项目编号');
+  assert.equal(it.due, '2025-05-20T00:00');
+  assert.equal(it.deadline, true);
+  assert.match(it.notes, /项目编号/);
+});

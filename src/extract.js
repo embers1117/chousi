@@ -79,6 +79,9 @@ const ATTR_KEYS = [
 
 function attrKindOf(key) {
   for (const [re, kind] of ATTR_KEYS) if (re.test(key)) return kind;
+  // 兜底：任何「XX时间 / XX日期 / XX地点」都按属性处理（面试时间、报到时间、培训地点…）
+  if (key.length <= 6 && /(时间|日期|档期)$/.test(key)) return 'time';
+  if (key.length <= 6 && /(地点|地址|场地)$/.test(key)) return 'place';
   return null;
 }
 
@@ -91,7 +94,8 @@ const KEY_TITLE_RE = /(会议|面试|培训|活动|聚餐|考试|体检|讲座|�
  */
 function matchAttrLine(line) {
   const s = line.text;
-  const re = /([^：:\s]{1,8})\s*[:：]/g;
+  // 键名不能含中文标点，否则「，联系人：」会被当成键的一部分而漏掉
+  const re = /([^：:\s，,。；;、（）()【】\[\]]{1,8})\s*[:：]/g;
   const pairs = [];
   let m;
   while ((m = re.exec(s)) !== null) {
@@ -105,14 +109,15 @@ function matchAttrLine(line) {
   return pairs.map((p, i) => {
     const stop = i + 1 < pairs.length ? pairs[i + 1].keyIndex : s.length;
     const raw = s.slice(p.valueStart, stop);
-    const value = raw.trim();
-    const lead = raw.length - raw.trimStart().length;
+    // 去掉首尾空白与中文标点（「公司B座3层，」不该带着逗号）
+    const value = raw.trim().replace(/^[，,。；;、：:\s]+/, '').replace(/[，,。；;、：:\s]+$/, '');
+    const lead = raw.indexOf(value);
     return {
       attr: p.kind,
       key: p.key,
       text: value,
-      start: line.start + p.valueStart + lead,
-      end: line.start + p.valueStart + lead + value.length,
+      start: line.start + p.valueStart + Math.max(0, lead),
+      end: line.start + p.valueStart + Math.max(0, lead) + value.length,
     };
   }).filter((p) => p.text);
 }
