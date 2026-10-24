@@ -53,6 +53,44 @@ const PERIOD = {
   本季度: 'quarterStart', 这个季度: 'quarterStart', 下季度: 'nextQuarterStart', 下个季度: 'nextQuarterStart',
 };
 
+/** 节日：固定日期的用表查，农历节日用人工维护的年度表（只覆盖 2025-2027，超出范围就不猜） */
+const FESTIVAL = {
+  元旦: ['fixed', 1, 1],
+  情人节: ['fixed', 2, 14],
+  劳动节: ['fixed', 5, 1],
+  五一: ['fixed', 5, 1],
+  儿童节: ['fixed', 6, 1],
+  六一: ['fixed', 6, 1],
+  教师节: ['fixed', 9, 10],
+  国庆节: ['fixed', 10, 1],
+  国庆: ['fixed', 10, 1],
+  万圣节: ['fixed', 10, 31],
+  双十一: ['fixed', 11, 11],
+  光棍节: ['fixed', 11, 11],
+  双十二: ['fixed', 12, 12],
+  平安夜: ['fixed', 12, 24],
+  圣诞节: ['fixed', 12, 25],
+  圣诞: ['fixed', 12, 25],
+  春节: ['lunar', { 2025: [1, 29], 2026: [2, 17], 2027: [2, 6] }],
+  除夕: ['lunar', { 2025: [1, 28], 2026: [2, 16], 2027: [2, 5] }],
+  元宵节: ['lunar', { 2025: [2, 12], 2026: [3, 3], 2027: [2, 20] }],
+  元宵: ['lunar', { 2025: [2, 12], 2026: [3, 3], 2027: [2, 20] }],
+  端午节: ['lunar', { 2025: [5, 31], 2026: [6, 19], 2027: [6, 9] }],
+  端午: ['lunar', { 2025: [5, 31], 2026: [6, 19], 2027: [6, 9] }],
+  中秋节: ['lunar', { 2025: [10, 6], 2026: [9, 25], 2027: [9, 15] }],
+  中秋: ['lunar', { 2025: [10, 6], 2026: [9, 25], 2027: [9, 15] }],
+};
+
+const FESTIVAL_RE = /(元宵节|端午节|中秋节|国庆节|劳动节|儿童节|教师节|情人节|万圣节|平安夜|圣诞节|双十一|双十二|光棍节|元旦|春节|除夕|元宵|端午|中秋|国庆|五一|六一|圣诞)/g;
+
+/** 节日 -> 具体日期；表里没有的年份返回 null（宁可不猜） */
+function festivalDate(key, year) {
+  const entry = FESTIVAL[key];
+  if (!entry) return null;
+  if (entry[0] === 'fixed') return [entry[1], entry[2]];
+  return entry[1][year] || null;
+}
+
 /* ────────────────────────────── 词法 ────────────────────────────── */
 
 const NUM = '(?:\\d{1,2}|[一二两三四五六七八九十]{1,3})';
@@ -164,6 +202,11 @@ const PATTERNS = [
     re: /(\d{1,2}|[一二三四五六七八九十]{1,3})\s*点(?:半)?\s*[-–—~～至到]\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*点/g,
     build: (m) => ({ type: 'range', a: { h: cnToInt(m[1]), mi: 0 }, b: { h: cnToInt(m[2]), mi: 0 } }),
   },
+  // 节日：国庆 / 五一 / 春节 / 中秋 …
+  {
+    re: FESTIVAL_RE,
+    build: (m) => (FESTIVAL[m[1]] ? { type: 'festival', key: m[1] } : null),
+  },
   // 时刻：9:30
   {
     re: /(\d{1,2})\s*[:：]\s*(\d{2})(?![\d])/g,
@@ -249,7 +292,7 @@ export function tokenize(text) {
 
 /* ────────────────────────────── 语法：合并相邻 token ────────────────────────────── */
 
-const DATE_TYPES = new Set(['absdate', 'weekday', 'relday', 'period', 'dayonly', 'year']);
+const DATE_TYPES = new Set(['absdate', 'weekday', 'relday', 'period', 'dayonly', 'year', 'festival']);
 const CONNECTOR = /^[\s的于在上·]{0,3}$/;
 
 function canFill(span, tok) {
@@ -399,6 +442,23 @@ function resolveDateTok(tok, ref) {
     }
   }
 
+  if (tok.type === 'festival') {
+    const y = ref.getFullYear();
+    let md = festivalDate(tok.key, y);
+    let year = y;
+    if (md) {
+      let d = new Date(year, md[0] - 1, md[1]);
+      if (d < addDays(now, -1)) {                    // 今年的已经过了 -> 明年
+        const nxt = festivalDate(tok.key, year + 1);
+        if (nxt) { year += 1; md = nxt; d = new Date(year, md[0] - 1, md[1]); }
+      }
+      return { base: d, precision: 'day', festival: true };
+    }
+    const nxt = festivalDate(tok.key, y + 1);
+    if (nxt) return { base: new Date(y + 1, nxt[0] - 1, nxt[1]), precision: 'day', festival: true };
+    return { base: null, precision: 'none' };        // 表里没这年，不猜
+  }
+
   if (tok.type === 'year') {
     if (tok.sub === '底' || tok.sub === '末') return { base: new Date(tok.y, 11, 31), precision: 'day' };
     return { base: new Date(tok.y, 0, 1), precision: 'year' };
@@ -448,7 +508,11 @@ export function resolveSpan(span, ref) {
     return { start: null, end2: null, precision: 'none', hasTime: false, isDeadline: false, vague: true };
   }
 
-  const { base, precision: dp0 } = resolveDateTok(span.date, ref);
+  const { base, precision: dp0, festival } = resolveDateTok(span.date, ref);
+  // 节日表里没有这一年的日期（比如 2031 年的春节）—— 不猜
+  if (span.date && !base) {
+    return { start: null, end2: null, precision: 'none', hasTime: false, isDeadline: false, vague: false };
+  }
   let precision = dp0;
 
   if (span.range) {
@@ -484,9 +548,12 @@ export function resolveSpan(span, ref) {
 
   if (!span.date) return { start: null, end2: null, precision: 'none', hasTime: false, isDeadline: false, vague: false };
 
-  // 只有日期
+  // 只有日期。节日 + 「前」= 节前最后一天（国庆前 -> 9/30）
   if (precision === 'month' || precision === 'year') {
     return { start: base, end2: null, precision, hasTime: false, isDeadline: span.isDeadline, vague: false };
+  }
+  if (festival && span.isDeadline) {
+    return { start: startOfDay(addDays(base, -1)), end2: null, precision: 'day', hasTime: false, isDeadline: true, vague: false };
   }
   return { start: startOfDay(base), end2: null, precision: 'day', hasTime: false, isDeadline: span.isDeadline, vague: false };
 }
