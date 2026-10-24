@@ -29,6 +29,9 @@ jobs:
       - name: 单元测试
         run: npm test
 
+      - name: 抽取准确率评估
+        run: npm run eval -- --strict
+
       - name: 单文件打包
         run: npm run build
 

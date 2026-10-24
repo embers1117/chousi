@@ -3090,7 +3090,7 @@ function findPeople(text, timeSpans = []) {
   }
 
   // 小张 / 老王 这类昵称
-  const reNick = /(?:交给|发给|交给|找|联系|通知|提醒|请问|问)\s*[\u4e00-\u9fa5]{0,6}?([小老][\u4e00-\u9fa5])(?=处|那边|这儿|[，。、；;：:\s）)]|$)/g;
+  const reNick = /(?:交给|交到|送到|转到|转给|递给|拿到|发给|找|联系|通知|提醒|请问|问)\s*[\u4e00-\u9fa5]{0,6}?([小老][\u4e00-\u9fa5])(?=处|那边|这儿|[，。、；;：:\s）)]|$)/g;
   while ((m = reNick.exec(masked)) !== null) {
     if (!NAME_STOP.has(m[1])) people.add(m[1]);
   }
