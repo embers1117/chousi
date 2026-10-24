@@ -55,15 +55,17 @@ Chinese is the primary target; English coverage is intentionally minimal for now
 ## Development
 
 ```bash
-npm test        # 65 unit tests (no install needed)
+npm test        # 80 unit tests (no install needed)
 npm run build   # regenerate dist/chousi.html (single file, file:// friendly)
 npm run dev     # local preview
 npm run proxy   # optional local CORS proxy for the LLM mode
 ```
 
 The test suite covers the temporal parser (34 table-driven cases pinned to a fixed "now"),
-the extraction pipeline against realistic notices, and a **contract test** that every
-`id` / `data-field` / `data-act` used by `app.js` actually exists in `index.html`.
+a **segmentation regression suite** (15 cases: "one event split into three", "a location line
+turned into a todo", "a note turned into a todo"), the extraction pipeline against realistic
+notices, and a **contract test** that every `id` / `data-field` / `data-act` used by `app.js`
+actually exists in `index.html`.
 
 ## Privacy
 
