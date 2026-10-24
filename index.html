@@ -90,6 +90,9 @@
         <button class="btn-primary btn-sm" id="btn-add-all">全部加入待办</button>
         <button class="btn-ghost btn-sm" id="btn-copy-json">复制 JSON</button>
       </div>
+      <div class="kbd-hint" id="kbd-hint-drafts" hidden>
+        <kbd>j</kbd><kbd>k</kbd> 移动 <kbd>Enter</kbd> 加入待办 <kbd>x</kbd> 勾选 <kbd>Esc</kbd> 取消
+      </div>
       <div class="list" id="list-drafts"></div>
       <div class="empty" id="empty-drafts">
         <div class="empty-art" aria-hidden="true">⇢ ⇢ ⇢</div>
@@ -103,6 +106,9 @@
         <input type="search" id="search" placeholder="搜索待办…" class="search">
         <div class="chips" id="filter-cats"></div>
         <button class="btn-ghost btn-sm" id="btn-clear-done">清理已完成</button>
+      </div>
+      <div class="kbd-hint" id="kbd-hint-todos" hidden>
+        <kbd>j</kbd><kbd>k</kbd> 移动 <kbd>Enter</kbd> 完成/取消 <kbd>x</kbd> 同左 <kbd>Esc</kbd> 取消
       </div>
       <div class="list grouped" id="list-todos"></div>
       <div class="empty" id="empty-todos">
@@ -129,7 +135,7 @@
       <input class="card-title" data-field="title" placeholder="要做的事…" maxlength="120">
       <div class="card-actions">
         <span class="badge badge-conf" data-act="conf" title="抽取置信度">—</span>
-        <button class="icon-btn" data-act="source" title="查看原文出处">◎</button>
+        <button class="icon-btn" data-act="source" title="规则命中与原文">◎</button>
         <button class="icon-btn danger" data-act="del" title="删除">✕</button>
         <button class="btn-primary btn-sm" data-act="save">加入待办</button>
       </div>

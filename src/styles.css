@@ -1924,9 +1924,9 @@ mark {
   font-style: normal;
 }
 
-/* 原文出处的段落节奏 */
+/* 原文出处的段落节奏（.src-text 内部才保留换行） */
 .card-source {
-  white-space: pre-wrap;
+  white-space: normal;
   word-break: break-word;
   line-height: 1.85;
 }
@@ -1943,4 +1943,192 @@ mark {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+/* ═══ 21 · 键盘光标提示（j/k 移动时的当前卡片） ══════════════════════════ */
+
+.card.is-cursor {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-1);
+}
+
+.card.is-cursor::after {
+  content: "❯";
+  position: absolute;
+  left: -16px;
+  top: 14px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+/* 快捷键提示条 */
+.kbd-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: var(--text-3);
+  background: var(--surface-2);
+}
+
+.kbd-hint kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 5px;
+  border: 1px solid var(--line-2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ═══ 23 · 窄屏防溢出（真机 320–430px） ═══════════════════════════════════
+   桌面用 grid 两栏，窄屏必须保证「没有任何东西比视口宽」。
+   这里做三件事：① 把 body 钉死在视口宽 ② 整条链路 min-width:0 允许收缩
+   ③ 所有横向排列的按钮组在该换行时换行。 */
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.layout,
+.pane,
+.pane-in,
+.pane-out,
+.view,
+.list,
+.card,
+.card-top,
+.card-body,
+.row,
+.row-main,
+.editor-wrap,
+.topbar,
+.quick-help,
+.card-source {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#input,
+.search,
+.inp-notes {
+  width: 100%;
+  min-width: 0;
+}
+
+/* 卡片里的行是 flex：[原文表述] [日期时间] [截止] 三者共享一行。
+   别给它们 width:100%，否则会互相挤压到 0 宽。这里只允许收缩 + 按需换行。 */
+.inp,
+.inp-date {
+  min-width: 0;
+  flex: 1 1 110px;
+}
+
+.card-title {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.row-main {
+  flex-wrap: wrap;
+}
+
+.bulkbar,
+.toolbar,
+.input-tools,
+.card-actions,
+.row-chips,
+.chips {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 620px) {
+  .bulkbar {
+    row-gap: 6px;
+  }
+
+  .bulkbar .meta {
+    flex: 1 1 100%;
+    order: 3;
+  }
+
+  .toolbar {
+    row-gap: 8px;
+  }
+
+  .chips {
+    width: 100%;
+  }
+
+  .pane-head h2 {
+    font-size: 13px;
+  }
+}
+
+/* ═══ 22 · 「规则命中」注释面板 ════════════════════════════════════════════ */
+
+.card-source .why {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 0 0 10px;
+  padding: 0 0 10px;
+  border-bottom: 1px dashed var(--line-2);
+  font-size: 12px;
+}
+
+.card-source .why dt {
+  color: var(--text-3);
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.card-source .why dd {
+  margin: 0;
+  color: var(--text-2);
+  word-break: break-word;
+}
+
+.card-source .why dd b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.card-source .why .arrow {
+  color: var(--accent);
+  margin: 0 4px;
+  font-family: var(--mono);
+}
+
+.card-source .src-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.85;
+  color: var(--text-2);
+}
+
+.card-source .src-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-3);
+  font-size: 11px;
+  letter-spacing: 0.04em;
 }

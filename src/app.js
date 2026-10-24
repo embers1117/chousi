@@ -2,7 +2,7 @@
 import { extract } from './extract.js';
 import { uid, escapeHtml, clamp } from './util.js';
 import {
-  makeTodo, groupTodos, filterTodos, dueLabel,
+  makeTodo, groupTodos, filterTodos, dueLabel, fmtDueFull,
   toMarkdown, toICS, toPlainText, CATEGORIES,
 } from './model.js';
 import { loadState, saveState, loadAI, saveAI, exportBackup } from './store.js';
@@ -30,6 +30,7 @@ const state = {
   ai: {},
   tab: 'drafts',
   busy: false,
+  cursorId: null,   // 键盘光标落在哪张卡片上
 };
 
 let persistTimer = null;
@@ -60,7 +61,7 @@ function findItem(card) {
 
 function renderSource(item) {
   const src = item && item.source;
-  if (!src || !src.text) return '<em class="src-empty">这条是手动添加的，没有原文出处。</em>';
+  if (!src || !src.text) return '<span class="src-empty">这条是手动添加的，没有原文出处。</span>';
   const marks = (src.marks || []).slice().sort((a, b) => a.start - b.start);
   let out = '';
   let pos = 0;
@@ -76,6 +77,35 @@ function renderSource(item) {
   return out;
 }
 
+/** 「规则命中了什么」—— 让用户看得出这个日期是怎么来的 */
+function explainRows(item) {
+  const rows = [];
+  if (item.due) {
+    const arrow = '<span class="arrow">→</span>';
+    const from = item.dueText ? `<span>「${escapeHtml(item.dueText)}」</span>${arrow}` : '';
+    let to = `<b>${escapeHtml(fmtDueFull(item) || item.due.replace('T', ' '))}</b>`;
+    if (item.dueEnd) to += ` 至 ${escapeHtml(item.dueEnd.slice(11))}`;
+    if (item.deadline) to += ' <span class="arrow">·</span>截止';
+    if (item.precision === 'day' || item.precision === 'month') to += ' <span class="arrow">·</span>只知道日期';
+    rows.push(['时间', from + to]);
+  } else if (item.dueText) {
+    rows.push(['时间', `<span>「${escapeHtml(item.dueText)}」</span><span class="arrow">→</span>表述模糊，没落成具体时间`]);
+  } else {
+    rows.push(['时间', '没识别到时间表达式']);
+  }
+  if (item.place) rows.push(['地点', `<b>${escapeHtml(item.place)}</b>`]);
+  if (item.people && item.people.length) rows.push(['人物', item.people.map(escapeHtml).join('、')]);
+  if (item.priority === 'high') rows.push(['优先级', '命中「重要/紧急/务必/尽快」这类词']);
+  if (item.weak) rows.push(['提示', '置信度较低，可能不是一件事，建议核对后删掉']);
+  return rows;
+}
+
+function renderPanel(item) {
+  const why = explainRows(item)
+    .map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${v}</dd>`).join('');
+  return `<dl class="why">${why}</dl><span class="src-label">原文依据</span><div class="src-text">${renderSource(item)}</div>`;
+}
+
 function dueChipText(item) {
   if (item.due) return (item.deadline ? '截止 ' : '') + dueLabel(item);
   if (item.dueText) return '待定 · ' + item.dueText;
@@ -87,6 +117,7 @@ function fillCard(node, item, mode) {
   node.dataset.id = item.id;
   node.classList.toggle('is-done', !!item.done);
   node.classList.toggle('is-picked', state.picked.has(item.id));
+  node.classList.toggle('is-cursor', state.cursorId === item.id);
   node.classList.remove('priority-high', 'priority-normal', 'priority-low');
   node.classList.add('priority-' + (item.priority || 'normal'));
 
@@ -159,6 +190,12 @@ function renderHeader() {
   const all = state.drafts.length > 0 && state.picked.size === state.drafts.length;
   $('#chk-all').checked = all;
   $('#lnk-gh').href = REPO_URL;
+
+  // 快捷键提示：有卡片时才出现
+  const hintD = $('#kbd-hint-drafts');
+  if (hintD) hintD.hidden = state.drafts.length === 0;
+  const hintT = $('#kbd-hint-todos');
+  if (hintT) hintT.hidden = state.todos.length === 0;
 }
 
 function renderDrafts() {
@@ -201,6 +238,87 @@ function renderAll() {
   renderHeader();
   renderDrafts();
   renderTodos();
+}
+
+/* ───────────────── 键盘光标 ───────────────── */
+
+function visibleCards() {
+  const sel = state.tab === 'drafts' ? '#list-drafts .card' : '#list-todos .card';
+  return $$(sel);
+}
+
+function setCursor(id) {
+  state.cursorId = id || null;
+  for (const el of $$('.card')) el.classList.toggle('is-cursor', !!id && el.dataset.id === id);
+  if (!id) return;
+  const el = document.querySelector(`.card[data-id="${id}"]`);
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+}
+
+function moveCursor(delta) {
+  const cards = visibleCards();
+  if (!cards.length) return;
+  const idx = cards.findIndex((c) => c.dataset.id === state.cursorId);
+  const next = idx < 0
+    ? (delta > 0 ? 0 : cards.length - 1)
+    : clamp(idx + delta, 0, cards.length - 1);
+  setCursor(cards[next].dataset.id);
+}
+
+/** Enter：草稿 -> 加入待办（光标顺移）；待办 -> 完成/取消完成 */
+function activateCursor() {
+  const id = state.cursorId;
+  if (!id) { moveCursor(1); return; }
+  if (state.tab === 'drafts') {
+    const item = state.drafts.find((d) => d.id === id);
+    if (!item) return;
+    const idx = visibleCards().findIndex((c) => c.dataset.id === id);
+    addDrafts([item]);
+    const after = visibleCards();
+    if (!after.length) { setCursor(null); return; }
+    setCursor(after[Math.min(Math.max(idx, 0), after.length - 1)].dataset.id);
+    return;
+  }
+  const t = state.todos.find((x) => x.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  t.updatedAt = new Date().toISOString();
+  persist();
+  renderHeader();
+  renderTodos();
+  setCursor(id);
+}
+
+/** x：草稿 -> 勾选（批量操作用）；待办 -> 完成/取消完成 */
+function markCursor() {
+  const id = state.cursorId;
+  if (!id) { moveCursor(1); return; }
+  if (state.tab === 'drafts') {
+    const on = !state.picked.has(id);
+    if (on) state.picked.add(id); else state.picked.delete(id);
+    const card = document.querySelector(`.card[data-id="${id}"]`);
+    if (card) {
+      card.classList.toggle('is-picked', on);
+      const box = $('[data-act="pick"]', card);
+      if (box) box.checked = on;
+    }
+    renderHeader();
+    return;
+  }
+  activateCursor();
+}
+
+function onKeydown(e) {
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"]')) return;
+  if (document.querySelector('dialog[open]')) return;
+  const k = e.key;
+  if (k === 'j') { e.preventDefault(); moveCursor(1); }
+  else if (k === 'k') { e.preventDefault(); moveCursor(-1); }
+  else if (k === 'Enter') { if (state.cursorId) { e.preventDefault(); activateCursor(); } }
+  else if (k === 'x' || k === 'X') { if (state.cursorId) { e.preventDefault(); markCursor(); } }
+  else if (k === 'Escape') setCursor(null);
 }
 
 function toast(msg, kind) {
@@ -246,9 +364,11 @@ async function runExtract() {
     }
     state.drafts = items.map((it) => ({ ...it, id: uid('dr') }));
     state.picked = new Set();
+    state.cursorId = null;
     state.tab = 'drafts';
     renderAll();
-    toast(`抽出 ${items.length} 条待办`);
+    toast(`抽出 ${items.length} 条待办 · 按 j/k 上下移动，Enter 加入`);
+    setCursor(visibleCards()[0] ? visibleCards()[0].dataset.id : null);
   } catch (err) {
     console.error(err);
     toast('抽取出错：' + (err.message || err), 'error');
@@ -262,6 +382,8 @@ async function runExtract() {
 
 function addDrafts(list) {
   if (!list.length) return;
+  const before = visibleCards().map((c) => c.dataset.id);
+  const cursorPos = before.indexOf(state.cursorId);
   for (const d of list) {
     state.todos.unshift(makeTodo({ ...d, done: false, createdAt: new Date().toISOString() }));
   }
@@ -270,6 +392,12 @@ function addDrafts(list) {
   for (const id of ids) state.picked.delete(id);
   renderAll();
   persist();
+  // 光标停在原位置（下一张卡片），不跳回顶部
+  if (cursorPos >= 0) {
+    const after = visibleCards();
+    if (after.length) setCursor(after[Math.min(cursorPos, after.length - 1)].dataset.id);
+    else setCursor(null);
+  }
   toast(`已加入 ${list.length} 条待办`);
 }
 
@@ -382,6 +510,9 @@ function onFieldChange(e) {
 }
 
 function onClick(e) {
+  const cardHit = e.target.closest('.card');
+  if (cardHit) setCursor(cardHit.dataset.id);
+
   const btn = e.target.closest('[data-act]');
   if (btn) {
     const act = btn.dataset.act;
@@ -404,7 +535,7 @@ function onClick(e) {
     if (act === 'source' && card) {
       const box = $('.card-source', card);
       if (box.hidden) {
-        box.innerHTML = renderSource(item);
+        box.innerHTML = renderPanel(item);
         box.removeAttribute('hidden');
       } else {
         box.setAttribute('hidden', '');
@@ -616,6 +747,7 @@ function bind() {
   document.addEventListener('click', onClick);
   document.addEventListener('input', onFieldInput);
   document.addEventListener('change', onFieldChange);
+  document.addEventListener('keydown', onKeydown);
 
   // 拖一个 .txt/.md 文件进来直接填充
   const ta = $('#input');
