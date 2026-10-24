@@ -2,6 +2,10 @@
 
 > 把一大段文字，抽成一条条能执行的待办。
 
+[![ci](https://github.com/embers1117/chousi/actions/workflows/ci.yml/badge.svg)](https://github.com/embers1117/chousi/actions/workflows/ci.yml)
+![deps](https://img.shields.io/badge/dependencies-0-brightgreen)
+![license](https://img.shields.io/badge/license-MIT-blue)
+
 同事在群里发了一屏通知、邮箱里躺着一封会议纪要、老师布置了一堆事——你不想再手动拆成待办。
 **抽丝**做的就是这件事：粘一段话，它把 **时间 / 地点 / 人物 / 任务 / 备注 / 优先级** 抽出来，变成一张张可以直接改、直接用的待办卡片。
 

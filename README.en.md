@@ -2,6 +2,10 @@
 
 > Paste a wall of text → get structured to-dos.
 
+[![ci](https://github.com/embers1117/chousi/actions/workflows/ci.yml/badge.svg)](https://github.com/embers1117/chousi/actions/workflows/ci.yml)
+![deps](https://img.shields.io/badge/dependencies-0-brightgreen)
+![license](https://img.shields.io/badge/license-MIT-blue)
+
 **[中文说明](README.md)** · [MIT](LICENSE)
 
 `chousi` is a tiny, dependency-free web tool for the one thing every to-do app gets wrong:
